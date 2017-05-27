@@ -3,19 +3,93 @@
 import os
 import sys
 import subprocess
-import PyQt5.QtWidgets as qtw
-import PyQt5.QtGui as gui
 import PyQt5.QtCore as core
+import PyQt5.QtGui as gui
+import PyQt5.QtWidgets as qtw
 
-from .linter_exec import Linter
 from .linter_base import iconame, LBase, log, Mode
-## common_path_txt = 'De bestanden staan allemaal in of onder de directory "{}"'
+from .linter_exec import Linter
+common_path_txt = 'De bestanden staan allemaal in of onder de directory "{}"'
 TXTW = 200
 
 
-class SelectNames(qtw.QDialog):
-    """Tussenscherm om te verwerken files te kiezen"""
+class QuietOptions(qtw.QDialog):
+    """configure where to send output to
+    """
+    def __init__(self, parent):
+        self.parent = parent
+        super().__init__(parent)
+        self.setWindowTitle(self.parent.title + " - configure")
+        self.setWindowIcon(gui.QIcon(iconame))
+        vbox = qtw.QVBoxLayout()
+        vbox.addWidget(qtw.QLabel("Send output to:", self))
 
+        box = qtw.QHBoxLayout()
+        self.single = qtw.QRadioButton('Single file:', self)
+        box.addWidget(self.single)
+        self.fname = qtw.QLineEdit(self)
+        self.fname.setMaximumWidth(TXTW)
+        self.fname.setMinimumWidth(TXTW)
+        if self.parent.quiet_options['dest'] == 'single':
+            self.single.setChecked(True)
+            self.fname.setText(self.parent.quiet_options['pattern'])
+        box.addWidget(self.fname)
+        btn = qtw.QPushButton('Select', self)
+        btn.clicked.connect(self.browse)
+        box.addWidget(btn)
+        box.addStretch()
+        vbox.addLayout(box)
+
+        box = qtw.QHBoxLayout()
+        self.multi = qtw.QRadioButton('Multiple files like:', self)
+        box.addWidget(self.multi)
+        self.pattern = qtw.QLineEdit(self)
+        self.pattern.setMaximumWidth(TXTW + 100)
+        self.pattern.setMinimumWidth(TXTW + 100)
+        if self.parent.quiet_options['dest'] == 'multi':
+            self.multi.setChecked(True)
+            patt = self.parent.quiet_options['pattern']
+            if not patt:
+                patt = '~/.linters/<linter>/<ignore>/<filename>'
+            self.pattern.setText(patt)
+        box.addWidget(self.pattern)
+        box.addStretch()
+        vbox.addLayout(box)
+
+        text = """\
+        <linter>: replace linter name in path
+        <ignore>: part of source filename not to include in target, e.g. ~/projects/
+        <filename>: (remainder of) source filename
+        """
+        vbox.addWidget(qtw.QLabel(text, self))
+
+        hbox = qtw.QHBoxLayout()
+        hbox.addStretch()
+        b_can = qtw.QPushButton("&Terug", self)
+        b_can.clicked.connect(self.reject)
+        hbox.addWidget(b_can)
+        b_ok = qtw.QPushButton("&Klaar", self)
+        b_ok.clicked.connect(self.accept)
+        hbox.addWidget(b_ok)
+        hbox.addStretch()
+        vbox.addLayout(hbox)
+
+        self.setLayout(vbox)
+        if self.parent.dest_from_input:
+            self.single.setChecked(True)
+            self.fname.setText(self.parent.dest_from_input)
+
+    def browse(self):
+        pass
+
+    def accept(self):
+        """transfer chosen options to parent"""
+        super().accept()
+
+
+class SelectNames(qtw.QDialog):
+    """Tussenscherm om te verwerken files te kiezen
+    """
     def __init__(self, parent, files=True):
         self.dofiles = files
         self.parent = parent
@@ -48,10 +122,10 @@ class SelectNames(qtw.QDialog):
         fvbox = qtw.QVBoxLayout()
         self.checklist = []
         for item in self.parent.names:
-            cb = qtw.QCheckBox(item, frm)
+            chk = qtw.QCheckBox(item, frm)
             fhbox = qtw.QHBoxLayout()
-            fhbox.addWidget(cb)
-            self.checklist.append(cb)
+            fhbox.addWidget(chk)
+            self.checklist.append(chk)
             fvbox.addLayout(fhbox)
         frm.setLayout(fvbox)
         scrl = qtw.QScrollArea(self)
@@ -64,35 +138,33 @@ class SelectNames(qtw.QDialog):
         b_can.clicked.connect(self.reject)
         b_ok = qtw.QPushButton("&Klaar", self)
         b_ok.clicked.connect(self.accept)
-        hboks = qtw.QHBoxLayout()
         hbox = qtw.QHBoxLayout()
-        hbox.addStretch(1)
+        hbox.addStretch()
         hbox.addWidget(b_can)
         hbox.addWidget(b_ok)
-        hbox.addStretch(1)
-        hboks.addLayout(hbox)
-        vbox.addLayout(hboks)
+        hbox.addStretch()
+        vbox.addLayout(hbox)
 
         self.setLayout(vbox)
 
     def select_all(self):
         state = self.sel_all.isChecked()
-        for cb in self.checklist:
-            cb.setChecked(state)
+        for chk in self.checklist:
+            chk.setChecked(state)
 
     def invert_selection(self):
-        for cb in self.checklist:
-            cb.setChecked(not cb.isChecked())
+        for chk in self.checklist:
+            chk.setChecked(not chk.isChecked())
 
     def accept(self):
         "dialoog afsluiten"
         dirs = []
-        for cb in self.checklist:
-            if cb.isChecked():
+        for chk in self.checklist:
+            if chk.isChecked():
                 if self.dofiles:
-                    self.parent.names.remove(cb.text())
+                    self.parent.names.remove(chk.text())
                 else:
-                    dirs.append(cb.text())
+                    dirs.append(chk.text())
         if not self.dofiles:
             self.parent.names = dirs
         super().accept()
@@ -115,7 +187,7 @@ class Results(qtw.QDialog):
 
         hbox = qtw.QHBoxLayout()
         label_txt = "{0} ({1} items)".format(self.parent.zoekvervang.rpt[0],
-                len(self.parent.zoekvervang.rpt) - 1)
+                                             len(self.parent.zoekvervang.rpt) - 1)
         if self.parent.apptype == "multi":
             label_txt += '\n' + common_path_txt.format(self.common)
         self.txt = qtw.QLabel(label_txt, self)
@@ -125,11 +197,11 @@ class Results(qtw.QDialog):
         hbox = qtw.QHBoxLayout()
         self.lijst = qtw.QTableWidget(self)
         self.lijst.verticalHeader().setVisible(False)
-        self.lijst.setGridStyle(core.Qt.NoPen)# hierbij niet
+        self.lijst.setGridStyle(core.Qt.NoPen)  # hierbij niet
         if self.show_context:
             self.lijst.setColumnCount(3)
-            self.lijst.setColumnWidth(1,200)
-            self.lijst.setColumnWidth(2,340)
+            self.lijst.setColumnWidth(1, 200)
+            self.lijst.setColumnWidth(2, 340)
             self.lijst.setHorizontalHeaderLabels((titel, 'Context', 'Tekst'))
         else:
             self.lijst.setColumnCount(2)
@@ -138,7 +210,8 @@ class Results(qtw.QDialog):
         self.lijst.setColumnWidth(0, breedte)
         self.lijst.horizontalHeader().setStretchLastSection(True)
         self.populate_list()
-        self.lijst.cellDoubleClicked[int, int].connect(self.goto_result)
+        ## self.lijst.cellDoubleClicked[int, int].connect(self.goto_result)
+        self.lijst.cellDoubleClicked.connect(self.goto_result)
         act = qtw.QAction('Help', self)
         act.setShortcut('F1')
         act.triggered.connect(self.help)
@@ -166,13 +239,13 @@ class Results(qtw.QDialog):
         btn = qtw.QPushButton("Copy to &Clipboard", self)
         btn.clicked.connect(self.to_clipboard)
         hbox.addWidget(btn)
-        self.cb = qtw.QCheckBox("toon directorypad in uitvoer", self)
+        self.chk = qtw.QCheckBox("toon directorypad in uitvoer", self)
         if self.parent.apptype == "single":
-            self.cb.setEnabled(False)
-        hbox.addWidget(self.cb)
-        self.cb2 = qtw.QCheckBox("comma-delimited", self)
-        hbox.addWidget(self.cb2)
-        hbox.addStretch(1)
+            self.chk.setEnabled(False)
+        hbox.addWidget(self.chk)
+        self.chk = qtw.QCheckBox("comma-delimited", self)
+        hbox.addWidget(self.chk)
+        hbox.addStretch()
         vbox.addLayout(hbox)
 
         self.setLayout(vbox)
@@ -190,9 +263,9 @@ class Results(qtw.QDialog):
                 where, what = line.split(": ", 1)
                 if self.parent.apptype == "single":
                     if "r. " in where:
-                        fname, lineno = where.split("r. ", 1)
+                        lineno = where.split("r. ", 1)[1]
                         ## if ix == 1:
-                            ## kop += " in {0}".format(fname)
+                        ##     kop += " in {0}".format(fname)
                         where = lineno
                     else:
                         where = ""
@@ -230,7 +303,7 @@ class Results(qtw.QDialog):
         """
         qtw.QDialog.done(self, 0)
 
-    def get_results(self): # , toonpad):
+    def get_results(self):
         """apply switch to show complete path to results
         """
         toonpad = True if self.cb.isChecked() else False
@@ -265,10 +338,10 @@ class Results(qtw.QDialog):
         self.parent.zoekvervang.do_action(search_python=self.parent.p["context"])
         if len(self.parent.zoekvervang.rpt) == 1:
             qtw.QMessageBox.information(self, self.parent.resulttitel,
-                "Niks gevonden", qtw.QMessageBox.Ok)
+                                        "Niks gevonden", qtw.QMessageBox.Ok)
             super().done(0)
         label_txt = "{0} ({1} items)".format(self.parent.zoekvervang.rpt[0],
-                len(self.parent.zoekvervang.rpt) - 1)
+                                             len(self.parent.zoekvervang.rpt) - 1)
         if self.parent.apptype == "multi":
             label_txt += '\n' + common_path_txt.format(self.common)
         self.txt.setText(label_txt)
@@ -277,31 +350,31 @@ class Results(qtw.QDialog):
     def kopie(self):
         """callback for button 'Copy to file'
         """
-        f = self.parent.p["zoek"]
+        fn_out = self.parent.p["zoek"]
         for char in '/\\?%*:|"><.':
-            if char in f:
-                f = f.replace(char, "~")
-        f =  f.join(("files containing ", ".txt"))
+            if char in fn_out:
+                fn_out = fn_out.replace(char, "~")
+        fn_out = fn_out.join(("files containing ", ".txt"))
         dlg = qtw.QFileDialog.getSaveFileName(self,
-            "Resultaat naar bestand kopieren",
-            os.path.join(self.parent.hier,f),
-            "Text files (*.txt);;All files (*.*)",
-            )
+                                              "Resultaat naar bestand kopieren",
+                                              str(self.parent.hier / fn_out),
+                                              "Text files (*.txt);;All files (*.*)")
         if not dlg[0]:
             return
         with open(dlg[0], "w") as f_out:
-            for line in self.get_results(): # toonpad):
+            for line in self.get_results():
                 f_out.write(line + "\n")
 
     def help(self):
-        qtw.QMessageBox.information(self, 'info', ("Select a line and "
-            "doubleclick or press Ctrl-G to open the indicated file\n"
-            "at the indicated line (not in single file mode)"))
+        qtw.QMessageBox.information(self, self.parent.title,
+                                    "Select a line and doubleclick or press Ctrl-G"
+                                    " to open the indicated file\n"
+                                    "at the indicated line (not in single file mode)")
 
     def to_clipboard(self):
         """callback for button 'Copy to clipboard'
         """
-        clp = qtw.QApplication.clipboard()
+        _ = qtw.QApplication.clipboard()
 
     def to_result(self):
         print('shortcut pressed')
@@ -316,7 +389,7 @@ class Results(qtw.QDialog):
         selected = self.results[row + 1]
         target, line = selected[0].split(' r. ')
         target = self.common + target
-        prog, fileopt, lineopt = self.parent._editor_option
+        prog, fileopt, lineopt = self.parent.editor_option
         subprocess.run([prog, fileopt.format(target), lineopt.format(line)])
 
 
@@ -348,7 +421,10 @@ class MainFrame(qtw.QWidget, LBase):
         self.use_pylint = qtw.QRadioButton('Pylint', self)
         self.linters.addButton(self.use_pylint)
         box.addWidget(self.use_pylint)
+        if self.linter_from_input == 'pylint':
+            self.use_pylint.setChecked(True)
         self.conf_pylint = qtw.QPushButton('Configure', self)
+        self.conf_pylint.clicked.connect(self.configure_pylint)
         box.addWidget(self.conf_pylint)
         box.addStretch()
         self.grid.addLayout(box, self.row, 1)
@@ -358,7 +434,10 @@ class MainFrame(qtw.QWidget, LBase):
         self.use_flake8 = qtw.QRadioButton('Flake8', self)
         self.linters.addButton(self.use_flake8)
         box.addWidget(self.use_flake8)
+        if self.linter_from_input == 'flake8':
+            self.use_flake8.setChecked(True)
         self.conf_flake8 = qtw.QPushButton('Configure', self)
+        self.conf_flake8.clicked.connect(self.configure_flake8)
         box.addWidget(self.conf_flake8)
         box.addStretch()
         self.grid.addLayout(box, self.row, 1)
@@ -378,30 +457,44 @@ class MainFrame(qtw.QWidget, LBase):
             self.zoek = qtw.QPushButton("&Zoek")
             self.zoek.clicked.connect(self.zoekdir)
             self.vraag_dir = self.add_combobox_row("In directory:",
-                self._mru_items["dirs"], initial=initial, button=self.zoek)
+                                                   self._mru_items["dirs"],
+                                                   initial=initial, button=self.zoek)
         elif self.mode == Mode.multi.value:
-            self.grid.addWidget(qtw.QLabel('In de volgende files/directories:',
-                self), self.row, 0, 1, 3)
+            self.grid.addWidget(qtw.QLabel('In de volgende files/directories:', self),
+                                self.row, 0, 1, 3)
             self.row += 1
-            self.lb = qtw.QListWidget(self)
-            self.lb.insertItems(0, self.fnames)
-            self.grid.addWidget(self.lb, self.row, 0, 1, 3)
+            self.lbox = qtw.QListWidget(self)
+            self.lbox.insertItems(0, self.fnames)
+            self.grid.addWidget(self.lbox, self.row, 0, 1, 3)
 
         if self.mode != Mode.single.value or os.path.isdir(self.fnames[0]):
-            t = ''
+            txt = ''
             if self.mode == Mode.multi.value:
-                t = "van geselecteerde directories "
-            self.vraag_subs = self.add_checkbox_row(t + "ook subdirectories "
-                "doorzoeken", self.p["subdirs"])
+                txt = "van geselecteerde directories "
+            self.vraag_subs = self.add_checkbox_row(txt + "ook subdirectories "
+                                                    "doorzoeken", self.p["subdirs"])
             self.vraag_diepte = qtw.QSpinBox(self)
             self.vraag_diepte.setMinimum(-1)
             self.vraag_diepte.setValue(5)
             self.vraag_links = self.add_checkbox_row("symlinks volgen - max. diepte "
-                "(-1 is alles):", spinner=self.vraag_diepte)
+                                                     "(-1 is alles):",
+                                                     spinner=self.vraag_diepte)
             self.ask_skipdirs = self.add_checkbox_row("selecteer (sub)directories "
-                "om over te slaan")
+                                                      "om over te slaan")
             self.ask_skipfiles = self.add_checkbox_row("selecteer bestanden "
-                "om over te slaan")
+                                                       "om over te slaan")
+
+        self.row += 1
+        box = qtw.QHBoxLayout()
+        self.quiet = qtw.QCheckBox('Output to file(s) directly', self)
+        box.addWidget(self.quiet)
+        if self.dest_from_input:
+            self.quiet.setChecked(True)
+        self.conf_quiet = qtw.QPushButton('Configure', self)
+        self.conf_quiet.clicked.connect(self.configure_quiet)
+        box.addWidget(self.conf_quiet)
+        box.addStretch()
+        self.grid.addLayout(box, self.row, 1)
 
         self.row += 1
         hbox = qtw.QHBoxLayout()
@@ -428,46 +521,46 @@ class MainFrame(qtw.QWidget, LBase):
     def add_combobox_row(self, labeltext, itemlist, initial='', button=None):
         self.row += 1
         self.grid.addWidget(qtw.QLabel(labeltext), self.row, 0)
-        cb = qtw.QComboBox(self)
-        cb.setMaximumWidth(TXTW)
-        cb.setMinimumWidth(TXTW)
-        cb.insertItems(0, itemlist)
-        cb.setEditable(True)
-        cb.clearEditText()
+        cmb = qtw.QComboBox(self)
+        cmb.setMaximumWidth(TXTW)
+        cmb.setMinimumWidth(TXTW)
+        cmb.insertItems(0, itemlist)
+        cmb.setEditable(True)
+        cmb.clearEditText()
         if initial:
-            cb.setEditText(initial)
+            cmb.setEditText(initial)
         if button:
             box = qtw.QHBoxLayout()
-            box.addWidget(cb)
+            box.addWidget(cmb)
             box.addWidget(button)
             box.addStretch()
             self.grid.addLayout(box, self.row, 1)
         else:
-            self.grid.addWidget(cb, self.row, 1)
-        return cb
+            self.grid.addWidget(cmb, self.row, 1)
+        return cmb
 
     def add_checkbox_row(self, text, toggler=None, spinner=None):
         self.row += 1
-        cb = qtw.QCheckBox(text, self)
+        chk = qtw.QCheckBox(text, self)
         if toggler:
-            cb.toggle()
+            chk.toggle()
         if spinner:
             box = qtw.QHBoxLayout()
-            box.addWidget(cb)
+            box.addWidget(chk)
             box.addWidget(spinner)
             box.addStretch()
             self.grid.addLayout(box, self.row, 1)
         else:
-            self.grid.addWidget(cb, self.row, 1)
-        return cb
+            self.grid.addWidget(chk, self.row, 1)
+        return chk
 
-    def check_case(self, int):
+    def check_case(self, inp):
         """autocompletion voor zoektekst in overeenstemming brengen met case
         indicator"""
-        if int == core.Qt.Checked:
+        if inp == core.Qt.Checked:
             new_value = core.Qt.CaseSensitive
         else:
-            new_value = core.Qt.CaseInSensitive
+            new_value = core.Qt.CaseInsensitive
         self.vraag_zoek.setAutoCompletionCaseSensitivity(new_value)
 
     def keyPressEvent(self, event):
@@ -491,32 +584,35 @@ class MainFrame(qtw.QWidget, LBase):
 
     def doe(self):
         """Zoekactie uitvoeren en resultaatscherm tonen"""
-        mld = ''
-        if self.mode != Mode.standard.value:
+        test = self.linters.checkedButton() or ''
+        if test: test = test.text()
+        mld = self.check_linter(test)
+        if not mld and self.mode == Mode.standard.value:
             mld = self.checkpath(str(self.vraag_dir.currentText()))
         if not mld:
             if self.mode != Mode.single.value or os.path.isdir(self.input):
                 self.checksubs(self.vraag_subs.isChecked(),
-                    self.vraag_links.isChecked(), self.vraag_diepte.value())
+                               self.vraag_links.isChecked(), self.vraag_diepte.value())
             elif self.mode == Mode.single.value and os.path.islink(self.input):
                 self.p["follow_symlinks"] = True
-        self.p["fallback_encoding"] = self._fallback_encoding
-
+        if not mld and self.quiet.isChecked():
+            mld = self.check_quiet_options()
         if mld:
             qtw.QMessageBox.critical(self, self.fouttitel, mld, qtw.QMessageBox.Ok)
             return
 
+        self.p["fallback_encoding"] = self._fallback_encoding
         self.schrijfini()
         self.zoekvervang = Linter(**self.p)
         if not self.zoekvervang.ok:
             msg = '\n'.join(self.zoekvervang.rpt)
-            qtw.QMessageBox.information(self, self.resulttitel,
-                msg, qtw.QMessageBox.Ok)
+            qtw.QMessageBox.information(self, self.resulttitel, msg,
+                                        qtw.QMessageBox.Ok)
             return
 
         if not self.zoekvervang.filenames:
-            qtw.QMessageBox.information(self, self.resulttitel,
-                "Geen bestanden gevonden", qtw.QMessageBox.Ok)
+            qtw.QMessageBox.information(self, self.resulttitel, "Geen bestanden gevonden",
+                                        qtw.QMessageBox.Ok)
             return
 
         common_part = self.determine_common()
@@ -558,10 +654,10 @@ class MainFrame(qtw.QWidget, LBase):
             if canceled:
                 return
 
-        self.zoekvervang.do_action(search_python = self.p["context"])
+        self.zoekvervang.do_action(search_python=self.p["context"])
         if len(self.zoekvervang.rpt) == 1:
             qtw.QMessageBox.information(self, self.resulttitel, "Niks gevonden",
-                qtw.QMessageBox.Ok)
+                                        qtw.QMessageBox.Ok)
         else:
             dlg = Results(self, common_part)
         if self.vraag_exit.isChecked() and self.p["vervang"] is not None:
@@ -569,10 +665,23 @@ class MainFrame(qtw.QWidget, LBase):
 
     def zoekdir(self):
         """event handler voor 'zoek in directory'"""
-        oupad = self.vraag_dir.currentText()
         dlg = qtw.QFileDialog.getExistingDirectory(self, "Choose a directory:",
-            oupad)
+                                                   self.vraag_dir.currentText())
         if dlg:
             self.vraag_dir.setEditText(dlg)
 
+    def configure_pylint(self):
+        """open pylint configuration in editor
+        """
+        self.edit_conf(os.path.join(os.path.expanduser('~'), '.pylintrc'))
 
+    def configure_flake8(self):
+        self.edit_conf(os.path.join(os.path.expanduser('~'), '.config', 'flake8'))
+
+    def edit_conf(self, conf):
+        subprocess.run(['xdg-open', conf])
+
+    def configure_quiet(self):
+        dlg = QuietOptions(self).exec_()
+        if dlg == qtw.QDialog.Accepted:
+            "update config"  # TODO

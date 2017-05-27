@@ -10,11 +10,10 @@ so that the starters need not know about which one is used
 from .linter_qtgui import MainFrame
 MainFrame = MainFrame
 
+
 def test():
     "test routine"
-    win = MainFrame()
-    ## MainFrame(apptype = "single", fnaam = '/home/albert/filefindr/linter/linter_gui.py')
-    ## win = MainFrame(apptype="multi", fnaam = 'CMDAE.tmp')
+    MainFrame()
 
 if __name__ == "__main__":
     test()

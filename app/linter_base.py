@@ -3,20 +3,20 @@
 het meeste hiervan bevind zich in een class die als mixin gebruikt wordt
 """
 import os
-import sys
 import pathlib
+import logging
+import enum
+## import pickle
+import json
+
 BASE = pathlib.Path(os.environ['HOME']) / '.mylinter'
 if not BASE.exists():
     BASE.mkdir()
-HERE = os.path.dirname(__file__)
-iconame = os.path.join(HERE,"find.ico")
-## import pickle
-import json
-import logging
-import enum
-
-logging.basicConfig(filename=os.path.join(os.path.dirname(HERE), 'logs',
-    'linter.log'), level=logging.DEBUG, format='%(asctime)s %(message)s')
+HERE = pathlib.Path(__file__).parent
+iconame = str(HERE / "find.ico")
+logfile = pathlib.Path(HERE) / '..' / 'logs' / 'linter.log'
+logging.basicConfig(filename=str(logfile), level=logging.DEBUG,
+                    format='%(asctime)s %(message)s')
 
 
 def log(message):
@@ -49,7 +49,7 @@ class LBase(object):
     GUI-toolkit"""
 
     ## def __init__(self, parent, apptype="", fnaam="", flist=None):
-    def __init__(self, apptype="", fnaam="", flist=None):
+    def __init__(self):
         """attributen die altijd nodig zijn
         """
         self.title = "Albert's linter GUI frontend"
@@ -57,12 +57,14 @@ class LBase(object):
         self.resulttitel = self.title + " - Resultaten"
         self.hier = ""
         self._mru_items = {}
+        self.s = ''
         self.p = {}
         self._keys = ("dirs",)
         for key in self._keys:
             self._mru_items[key] = []
         self._optionskey = "options"
         self._sections = ('dirs',)
+        self.quiet_options = {'dest': 'multi', 'pattern': None}
         self._words = ('woord', 'woord', 'spec', 'pad', )
         self._optkeys = ("subdirs",)
         for key in self._optkeys:
@@ -81,70 +83,80 @@ class LBase(object):
             test = edfile.read_text()
         except FileNotFoundError:
             test = '\n'.join(("program = 'SciTE'",
-                "file-option = '-open:{}'",
-                "line-option = '-goto:{}'",
-                ""))
+                              "file-option = '-open:{}'",
+                              "line-option = '-goto:{}'",
+                              ""))
             edfile.write_text(test)
-        self._editor_option = [x.split(' = ')[1].strip("'")
-            for x in test.strip().split('\n')]
+        self.editor_option = [x.split(' = ')[1].strip("'")
+                               for x in test.strip().split('\n')]
 
     def set_mode(self, args):
         # determine execution mode assuming command line parsing has already been done
-        if not args: args = []
-        for key, value in vars(args).items():
-            if value:
-                self.mode, input = key, value
+        self.linter_from_input = args.c
+        self.dest_from_input = args.o
+        self.skip_screen = args.s
+
+        for x in Mode:
+            test = args.__getattribute__(x.value)
+            if test:
+                self.mode = x.value
+                inp = test
                 break
         else:
             self.mode = Mode.standard.value
-            input = ''
+            inp = ''
 
         if self.mode == Mode.standard.value:
             self.fnames = []
-            self.hier = os.getcwd()
-            if input.startswith('...'):
+            self.hier = pathlib.Path.cwd()
+            if inp.startswith('...'):   #  TODO: kan dit slimmer m.b.v. pathlib?
                 pass
-            elif input.startswith('..'):
-                input = input.replace('..', os.path.dirname(self.hier), 1)
-            elif input.startswith('.'):
-                input = input.replace('.', self.hier, 1)
-            elif input.startswith('~'):
-                input = os.path.expanduser(input)
-            if input:
-                self.fnames = [input,]
-        elif self.mode == Mode.single.value: # data is file om te verwerken
+            elif inp.startswith('..'):
+                inp = inp.replace('..', str(self.hier.parent), 1)
+            elif inp.startswith('.'):
+                inp = inp.replace('.', str(self.hier), 1)
+            elif inp.startswith('~'):
+                inp = os.path.expanduser(inp)
+            if inp:
+                self.fnames = [inp]
+        elif self.mode == Mode.single.value: #  data is file om te verwerken
             self.title += " - single file version"
-            if not input:
+            if not inp:
                 raise ValueError('Need filename for application type "single"')
-            self.fnames = [input,]
-            self.hier = os.path.dirname(input)
+            inp = pathlib.Path(inp).resolve()
+            self.fnames = [str(inp)]
+            self.hier = inp.parent
         elif self.mode == Mode.multi.value: # data is file met namen om te verwerken
             self.title += " - file list version"
             self.fnames = []
-            if len(input) == 1:
-                with open(input) as f_in:
-                    for line in f_in:
-                        line = line.strip()
-                        if not self.hier:
-                            if line.endswith("\\") or line.endswith("/"):
-                                line = line[:-1]
-                            self.hier = os.path.dirname(line)
-                        ## if line.endswith("\\") or line.endswith("/"):
-                            ## # directory afwandelen en onderliggende files verzamelen
-                            ## pass
-                        ## else:
-                            ## self.fnames.append(line)
-                        self.fnames.append(line)
-            elif input:
-                self.fnames = input
+            if len(inp) == 1:
+                with open(inp[0]) as f_in:
+                    try:
+                        for line in f_in:
+                            line = line.strip()
+                            if not self.hier:
+                                if line.endswith("\\") or line.endswith("/"):
+                                    line = line[:-1]
+                                self.hier = pathlib.Path(line).resolve().parent
+                            ## if line.endswith("\\") or line.endswith("/"):
+                                ## # directory afwandelen en onderliggende files verzamelen
+                                ## pass
+                            ## else:
+                                ## self.fnames.append(line)
+                            self.fnames.append(line)
+                    except FileNotFoundError:
+                        raise ValueError('Input name is not a usable file for multi mode')
+            elif inp:
+                self.fnames = inp
             else:
-                raise ValueError('Need filename or list of files for application'
-                    ' type "multi"')
+                raise ValueError('Need filename or list of files for application type'
+                                 ' "multi"')
         else:
             raise ValueError('Execution mode could not be determined from input')
 
         if len(self.fnames) > 0:
             self.p["filelist"] = self.fnames
+        print(self.fnames)
         for ix, name in enumerate(self.fnames):
             if name.endswith("\\") or name.endswith("/"):
                 self.fnames[ix] = name[:-1]
@@ -173,11 +185,18 @@ class LBase(object):
         with ofile.open("w") as _out:
             json.dump(opts, _out, indent=4)
 
+    def check_linter(self, item):
+        if not item:
+            mld = 'Please choose a linter to use'
+        else:
+            mld = ""
+            self.p["linter"] = item
+        return mld
+
     def checkpath(self, item):
         "controleer zoekpad"
         if not item:
-            mld = ("Ik wil wel graag weten in welke directory ik moet "
-                   "(beginnen met) zoeken")
+            mld = ("Please enter or select a directory")
         elif not os.path.exists(item):
             mld = "De opgegeven directory bestaat niet"
         else:
@@ -201,3 +220,16 @@ class LBase(object):
         self.p["follow_symlinks"] = links
         self.p["maxdepth"] = depth
 
+    def check_quiet_options(self):
+        mld = ''
+        dest_ok = patt_ok = False
+        if self.quiet_options:
+            if 'dest' in self.quiet_options:
+                if self.quiet_options['dest'] in ('single', 'multi'):
+                    dest_ok = True
+            if 'pattern' in self.quiet_options:
+                if self.quiet_options['pattern']:
+                    patt_ok = True
+        if not dest_ok or not patt_ok:
+            mld = 'Please configure all options for quiet mode'
+        return mld

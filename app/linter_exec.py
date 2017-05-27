@@ -3,12 +3,12 @@
 de uitvoering wordt gestuurd door in een dictionary verzamelde parameters
 """
 from __future__ import print_function
-import sys
 import os
 import re
 import shutil
 import collections
 contains_default = 'module level code'
+
 
 def pyread(fname, fallback_encoding):
     try:
@@ -35,8 +35,8 @@ def pyread(fname, fallback_encoding):
             constructs.append(in_construct + [construct])
         if test.startswith('def ') or test.startswith('class '):
             words = test.split()
-            construct = (indentpos, words[0],
-                words[1].split(':')[0].split('(')[0], lineno)
+            construct = [indentpos, words[0],
+                         words[1].split(':')[0].split('(')[0], lineno]
             in_construct.append(construct)
         prev_lineno = lineno
     indentpos = 0
@@ -48,7 +48,7 @@ def pyread(fname, fallback_encoding):
     for item in constructs:
         _, _, _, start, end = item[-1]
         construct = []
-        in_class = in_method = False
+        ## in_class = in_method = False
         for part in item:
             type_, name = part[1:3]
             if type_ == "def":
@@ -59,6 +59,7 @@ def pyread(fname, fallback_encoding):
             construct.extend([type_, name])
         itemlist.append((start, end, " ".join(construct)))
     return sorted(itemlist)
+
 
 class Linter(object):
     """interpreteren van de parameters en aansturen van de zoek/vervang routine
@@ -91,7 +92,7 @@ class Linter(object):
         self.ok = True
         self.rpt = [] # verslag van wat er gebeurd is
         self.use_complex = True
-        self.re, self.ignore = '', ''
+        self.rex, self.ignore = '', ''
         if not self.p['filelist'] and not self.p['pad']:
             self.rpt.append("Fout: geen lijst bestanden en geen directory opgegeven")
         elif self.p['filelist'] and self.p['pad']:
@@ -111,18 +112,18 @@ class Linter(object):
             # moet hier nog iets mee doen m.h.o.o. woorddelen of niet
             if self.p['wijzig'] or self.p['regexp']:
                 self.use_complex = False
-                self.re = self.build_regexp_simple()
+                self.rex = self.build_regexp_simple()
             else:
-                self.re, self.ignore = self.build_regexes()
+                self.rex, self.ignore = self.build_regexes()
             specs = ["Gezocht naar '{0}'".format(self.p['zoek'])]
             if self.p['wijzig']:
                 specs.append(" en dit vervangen door '{0}'".format(self.p['vervang']))
             if self.p['extlist']:
                 if len(self.p['extlist']) > 1:
-                     s = " en ".join((", ".join(self.p['extlist'][:-1]),
-                                                self.p['extlist'][-1]))
+                    s = " en ".join((", ".join(self.p['extlist'][:-1]),
+                                    self.p['extlist'][-1]))
                 else:
-                     s = self.p['extlist'][0]
+                    s = self.p['extlist'][0]
                 specs.append(" in bestanden van type {0}".format(s))
             self.filenames = []
             self.dirnames = set()
