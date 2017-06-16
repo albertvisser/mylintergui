@@ -1,7 +1,31 @@
 # mylintergui
-Simple frontend for various Python linters
 
-More an exercise in using git/Github than an interesting software project, actually: I'm primarily
+## Simple frontend for various Python linters
+
+The GUI version is started by calling **start.py** in the project root directory.
+Its main purpose is to show the results of checking your code with a static analysis tool in a screen,
+and being able to save the results to a file afterwards.
+
+The arguments you provide control what you might call the execution mode:
+
+- bij specifying a directory you get the basic version, which allows you to check files in that directory.
+
+- by specifying a filename you get the single-file version, which will check that specific file.
+  This was originally developed to be called from within a text editor like SciTE.
+
+- by specifying a list of files or a file that contains such a list, you get the multiple file version.
+  This was originally designed to be called from within a file manager like Double Commander.
+
+Without any of these arguments, you get the basic version in which you can choose a directory.
+
+The choices to be made in the GUI (which linter to use, where to send output to) can also be passed
+using arguments, it's even possible to not have the GUI shown at all.
+
+During development I also made a script version ( **lint-this**  in the project root) that always
+saves the results into files.
+A variant on this is **lint-all** that relies on my personal software project structure.
+
+It all started more as an exercise in using git/Github than an interesting software project, actually: I'm primarily
 a Mercurial/Bitbucket user.
 
 Also an exercise in getting myself to make more use of static code analysis, by making things
@@ -9,17 +33,4 @@ easy (or eas*ier*).
 
 Because I already built a tool ([FileFindr](https://bitbucket.org/avisser/filefindr)) to do text
 searches in files and directories from a small GUI
-showing some options, I decided to reuse it for this purpose. So first of all this thing should make
-it possible to choose which linter to use.
-
-Just like the other thing, when you let it do what it's supposed to do, you get a screen showing
-the output, with the possibility to do various things with the results you get.
-Alternatively, you can choose to not show them, but write them directly to one or more files
-(which you can also do when you do have a look at the results first) .
-
-Along the way a simpler thingy emerged, basically just a parser for some command-line options,
-which I also included in this project.
-
-In fact the GUI version can also be started with options already specified, you can even choose
-not to show the GUI at all.
-
+showing some options, I decided to reuse it for this purpose.
