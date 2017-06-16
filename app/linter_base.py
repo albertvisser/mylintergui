@@ -9,9 +9,11 @@ import enum
 ## import pickle
 import json
 
-BASE = pathlib.Path(os.environ['HOME']) / '.mylinter'
+BASE = pathlib.Path.home() / '.mylinter'
 if not BASE.exists():
     BASE.mkdir()
+edfile = BASE / 'open_result'
+blacklist = BASE / 'donot_lint'
 HERE = pathlib.Path(__file__).parent
 iconame = str(HERE / "find.ico")
 logfile = pathlib.Path(HERE) / '..' / 'logs' / 'linter.log'
@@ -64,31 +66,22 @@ class LBase(object):
             self._mru_items[key] = []
         self._optionskey = "options"
         self._sections = ('dirs',)
-        self.quiet_options = {'dest': 'multi', 'pattern': None}
+        self.quiet_keys = ('dest', 'pattern', 'fname', 'ignore')
+        self.quiet_options = {
+            'dest': 'multi',
+            'pattern': '/'.join(('~', '.linters', '<linter>', '<ignore>',
+                                 '<filename>-<date>')),
+            'fname': '<linter>_results-<date>',
+            'ignore': '~/projects'}
         self._words = ('woord', 'woord', 'spec', 'pad', )
         self._optkeys = ("subdirs",)
         for key in self._optkeys:
             self.p[key] = False
         self._options = ("searchsubdirs",)
         self.readini()
-        encfile = BASE / 'fallback_encoding'
-        try:
-            test = encfile.read_text()
-        except FileNotFoundError:
-            test = 'latin-1\n'
-            encfile.write_text(test)
-        self._fallback_encoding = test.strip()
-        edfile = BASE / 'open_result'
-        try:
-            test = edfile.read_text()
-        except FileNotFoundError:
-            test = '\n'.join(("program = 'SciTE'",
-                              "file-option = '-open:{}'",
-                              "line-option = '-goto:{}'",
-                              ""))
-            edfile.write_text(test)
-        self.editor_option = [x.split(' = ')[1].strip("'")
-                               for x in test.strip().split('\n')]
+        self.fnames = []
+        self.get_editor_option()
+        self.build_blacklist()
 
     def set_mode(self, args):
         # determine execution mode assuming command line parsing has already been done
@@ -107,9 +100,8 @@ class LBase(object):
             inp = ''
 
         if self.mode == Mode.standard.value:
-            self.fnames = []
             self.hier = pathlib.Path.cwd()
-            if inp.startswith('...'):   #  TODO: kan dit slimmer m.b.v. pathlib?
+            if inp.startswith('...'):   # TODO: kan dit slimmer m.b.v. pathlib?
                 pass
             elif inp.startswith('..'):
                 inp = inp.replace('..', str(self.hier.parent), 1)
@@ -119,16 +111,15 @@ class LBase(object):
                 inp = os.path.expanduser(inp)
             if inp:
                 self.fnames = [inp]
-        elif self.mode == Mode.single.value: #  data is file om te verwerken
+        elif self.mode == Mode.single.value:  # data is file om te verwerken
             self.title += " - single file version"
             if not inp:
                 raise ValueError('Need filename for application type "single"')
             inp = pathlib.Path(inp).resolve()
             self.fnames = [str(inp)]
             self.hier = inp.parent
-        elif self.mode == Mode.multi.value: # data is file met namen om te verwerken
+        elif self.mode == Mode.multi.value:  # data is file met namen om te verwerken
             self.title += " - file list version"
-            self.fnames = []
             if len(inp) == 1:
                 with open(inp[0]) as f_in:
                     try:
@@ -145,7 +136,8 @@ class LBase(object):
                                 ## self.fnames.append(line)
                             self.fnames.append(line)
                     except FileNotFoundError:
-                        raise ValueError('Input name is not a usable file for multi mode')
+                        raise ValueError('Input name is not a usable file for multi '
+                                         'mode: should contain (only) path names')
             elif inp:
                 self.fnames = inp
             else:
@@ -156,7 +148,6 @@ class LBase(object):
 
         if len(self.fnames) > 0:
             self.p["filelist"] = self.fnames
-        print(self.fnames)
         for ix, name in enumerate(self.fnames):
             if name.endswith("\\") or name.endswith("/"):
                 self.fnames[ix] = name[:-1]
@@ -172,7 +163,11 @@ class LBase(object):
                 self._mru_items = json.load(_in)
             with ofile.open() as _in:
                 opts = json.load(_in)
-            self.p.update(opts)
+            for key in self._optkeys:
+                self.p[key] = opts[key]
+            for key in self.quiet_keys:
+                if key in opts:
+                    self.quiet_options[key] = opts[key]
 
     def schrijfini(self):
         """huidige settings toevoegen dan wel vervangen in ini file"""
@@ -182,8 +177,40 @@ class LBase(object):
         with mfile.open("w") as _out:
             json.dump(self._mru_items, _out, indent=4)
         opts = {key: self.p[key] for key in self._optkeys}
+        opts.update({key: self.quiet_options[key] for key in self.quiet_keys})
         with ofile.open("w") as _out:
             json.dump(opts, _out, indent=4)
+
+    def get_editor_option(self):
+        try:
+            test = edfile.read_text()
+        except FileNotFoundError:
+            test = '\n'.join(("program = 'SciTE'",
+                              "file-option = '-open:{}'",
+                              "line-option = '-goto:{}'",
+                              ""))
+            edfile.write_text(test)
+        self.editor_option = [x.split(' = ')[1].strip("'")
+                              for x in test.strip().split('\n')]
+
+    def build_blacklist(self):
+        try:
+            with blacklist.open() as _blf:
+                self.blacklist = json.load(_blf)
+        except FileNotFoundError:
+            self.blacklist = {
+                'exclude_dirs': ['__pycache__', '.hg', '.git'],
+                'exclude_exts': ['pyc', 'pyo', 'so', 'pck'],
+                'include_exts': ['py', 'pyw', ''],
+                'exclude_files': ['.hgignore', '.gitignore'],
+                'include_shebang': ['python', 'python3'],
+                    }
+            self.update_blacklistfile()
+        print(self.blacklist)
+
+    def update_blacklistfile(self, data):
+        with blacklist.open('w') as _blf:
+            json.dump(self.blacklist, _blf, indent=4)
 
     def check_linter(self, item):
         if not item:

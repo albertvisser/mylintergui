@@ -1,58 +1,9 @@
 #! /usr/bin/env python3
+"Another linter frontend"
 import argparse
-import pathlib
-import subprocess
+from lint_core import Main
 
-"""controleer de aangegeven python source of alle python sources in de huidige directory
-en stuur de output per stuk naar een file in ~/.linters/<linter>/
-
-opties:
-
--l : specify linter(no default)
--f : specify file
--r : recursive
-
-"""
-ROOT = pathlib.Path.home() / '.linters'
-CMD = {
-    'pylint': ('pylint3', '<src>'),
-    'flake8': ('python3', '-m', 'flake8', '<src>')
-    }
-
-class Main():
-
-    def __init__(self, args):
-        self.linter = args.linter
-        if args.file:
-            item = pathlib.Path(args.file).resolve()
-            self.lint(item)
-        else:
-            self.scan(pathlib.Path.cwd(), args.recursive)
-        print('ready.')
-
-    def lint(self, item):
-        print('checking', item)
-        command = [x for x in CMD[self.linter]]
-        for ix, word in enumerate(command):
-            if word == '<src>':
-                command[ix] = str(item)
-        out = ROOT / self.linter / item.relative_to(pathlib.Path.home() / 'projects')
-        print('writing to', out)
-        if not out.parent.exists():
-            out.parent.mkdir(parents=True)
-        with out.open('w') as _out:
-            subprocess.run(command, stdout=_out)
-
-    def scan(self, here, recursive=False):
-        """apply linter to files in directory
-        """
-        for item in here.iterdir():
-            if item.is_file() and item.suffix == '.py':
-                self.lint(item)
-            elif item.is_dir() and recursive:
-                self.scan(item, recursive)
-
-parser = argparse.ArgumentParser(description='Another linter frontend')
+parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('-l', '--linter', choices=['pylint', 'flake8'], required=True)
 parser.add_argument('-r', '--recursive', action='store_true')
 parser.add_argument('-f', '--file')

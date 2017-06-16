@@ -1,3 +1,4 @@
+#! /usr/bin/env python3
 """\
 Argument parser for GUI frontend to various static code analysis tools
 """

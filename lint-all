@@ -1,0 +1,9 @@
+#! /usr/bin/env python3
+"Lint one or more of my projects"
+import argparse
+from lint_core import lint_all
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('-p', '--project', nargs='+')
+args = parser.parse_args()
+result = lint_all(args)
