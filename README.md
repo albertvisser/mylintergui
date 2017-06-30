@@ -26,9 +26,9 @@ saves the results into files.
 A variant on this is **lint-all** that relies on my personal software project structure.
 
 It all started more as an exercise in using git/Github than an interesting software project, actually: I'm primarily
-a Mercurial/Bitbucket user.
+a Mercurial/Bitbucket user, and no doubt there a lots of programs like this around.
 
-Also an exercise in getting myself to make more use of static code analysis, by making things
+It's also an exercise in getting myself to make more use of static code analysis, by making things
 easy (or eas*ier*).
 
 Because I already built a tool ([FileFindr](https://bitbucket.org/avisser/filefindr)) to do text
