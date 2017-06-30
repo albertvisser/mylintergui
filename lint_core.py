@@ -4,14 +4,14 @@ import pathlib
 import datetime
 import subprocess
 from types import SimpleNamespace
+import settings
+
 ROOT = pathlib.Path.home() / '.linters'
 CMD = {
     'pylint': ('pylint3', '<src>'),
-    'flake8': ('python3', '-m', 'flake8', '<src>')
-    }
+    'flake8': ('python3', '-m', 'flake8', '<src>')}
 origpath = sys.path
 sys.path.insert(0, str(pathlib.Path.home() / 'bin'))
-import settings
 sys.path = origpath
 do_not_lint = settings.fcgi_repos + settings.private_repos + settings.non_deploy_repos
 all_repos = settings.all_repos + settings.git_repos
@@ -48,14 +48,35 @@ class Main():
     """Main class for applying a linter to one or more files
     """
 
-    def __init__(self, args):
+    def __init__(self, args, repo_only=True):
         self.linter = args.linter
+        self.determine_files(repo_only)
         if args.file:
             item = pathlib.Path(args.file).resolve()
             self.lint(item)
         else:
             self.scan(pathlib.Path.cwd(), args.recursive)
         print('ready.')
+
+    def determine_files(self, filter_repo):
+        """read hg manifest to filter out files that do not need to be checked
+        """
+        self.files = []
+        if not filter_repo:
+            return
+        repo_loc = pathlib.Path.cwd()
+        test = repo_loc / '.hg'
+        if test.exists():
+            command = ['hg', 'manifest']
+        else:
+            test = repo_loc / '.git'
+            if test.exists():
+                command = ['git', 'ls-files']
+        if not command:
+            return
+        result = subprocess.run(command, stdout=subprocess.PIPE).stdout
+        for name in str(result, encoding='utf-8').split('\n'):
+            self.files.append(repo_loc / name)
 
     def lint(self, item):
         """actually call the linter
@@ -78,7 +99,9 @@ class Main():
         """apply linter to files in directory
         """
         for item in here.iterdir():
-            if item.is_file() and item.suffix == '.py':
+            if item.is_file() and item.suffix in ('.py', 'pyw', ''):
+                if self.files and item not in self.files:
+                    continue
                 self.lint(item)
             elif item.is_dir() and recursive:
                 self.scan(item, recursive)
