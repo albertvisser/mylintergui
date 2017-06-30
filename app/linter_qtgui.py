@@ -14,6 +14,16 @@ common_path_txt = 'De bestanden staan allemaal in of onder de directory "{}"'
 TXTW = 200
 
 
+def waiting_cursor(func):
+    "change the cursor before and after an operation"
+    def wrap_operation(self):
+        "the wrapped operation is a method without arguments"
+        self.app.setOverrideCursor(gui.QCursor(core.Qt.WaitCursor))
+        func(self)
+        self.app.restoreOverrideCursor()
+    return wrap_operation
+
+
 class FilterOptions(qtw.QDialog):
     """configure what files (not) to lint
     """
@@ -81,7 +91,7 @@ class FilterOptions(qtw.QDialog):
             'include_exts': ['pyc', 'pyo', '.so'],
             'include_exts': ['py', 'pyw', ''],
             'exclude_files': ['.hgignore', '.gitignore'],
-            'include_shebang': ['python', 'python3'],}
+            'include_shebang': ['python', 'python3'], }
         super().accept()
 
 
@@ -262,7 +272,6 @@ class Results(qtw.QDialog):
         self.parent = parent
         self.common = common_path
         self.results = []
-        titel = 'Regel' if self.parent.mode == Mode.single.value else 'File/Regel'
         breedte = 50 if self.parent.mode == Mode.single.value else 150
         super().__init__(parent)
         self.setWindowTitle(self.parent.resulttitel)
@@ -271,7 +280,7 @@ class Results(qtw.QDialog):
 
         hbox = qtw.QHBoxLayout()
         label_txt = "{} ({} items)".format(self.parent.do_checks.rpt[0],
-                                             len(self.parent.do_checks.results))
+                                           len(self.parent.do_checks.results))
         if self.parent.mode == Mode.multi.value:
             label_txt += '\n' + common_path_txt.format(self.common)
         self.txt = qtw.QLabel(label_txt, self)
@@ -312,7 +321,7 @@ class Results(qtw.QDialog):
         btn = qtw.QPushButton("&Klaar", self)
         btn.clicked.connect(self.klaar)
         hbox.addWidget(btn)
-        btn = qtw.QPushButton("&Repeat Search", self)
+        btn = qtw.QPushButton("&Repeat Action", self)
         btn.clicked.connect(self.refresh)
         hbox.addWidget(btn)
         btn = qtw.QPushButton("Copy to &File", self)
@@ -378,17 +387,11 @@ class Results(qtw.QDialog):
         self.results = []
         self.lijst.clear()
         self.parent.do_checks.rpt = ["".join(self.parent.do_checks.specs)]
-        self.parent.do_checks.do_action()
-        if len(self.parent.do_checks.rpt) == 1:
-            qtw.QMessageBox.information(self, self.parent.resulttitel,
-                                        "Niks gevonden", qtw.QMessageBox.Ok)
-            super().done(0)
-        label_txt = "{0} ({1} items)".format(self.parent.do_checks.rpt[0],
-                                             len(self.parent.do_checks.rpt) - 1)
-        if self.parent.mode == Mode.multi.value:
-            label_txt += '\n' + common_path_txt.format(self.common)
-        self.txt.setText(label_txt)
+        self.parent.app.setOverrideCursor(gui.QCursor(core.Qt.WaitCursor))
+        self.parent.execute_action()
         self.populate_list()
+        self.filelist.setCurrentIndex(0)
+        self.parent.app.restoreOverrideCursor()
 
     def kopie(self):
         """callback for button 'Copy to file'
@@ -426,7 +429,7 @@ class Results(qtw.QDialog):
         """
         fname = self.filelist.currentText()
         prog, fileopt, lineopt = self.parent.editor_option
-        subprocess.run([prog, fileopt.format(fname)]) #, lineopt.format(line)])
+        subprocess.run([prog, fileopt.format(fname)])  # , lineopt.format(line)])
 
 
 class MainFrame(qtw.QWidget, LBase):
@@ -435,7 +438,7 @@ class MainFrame(qtw.QWidget, LBase):
     QMainWindow is een beetje overkill, daarom maar een QWidget
     """
     def __init__(self, parent=None, args=None):
-        app = qtw.QApplication(sys.argv)
+        self.app = qtw.QApplication(sys.argv)
         super().__init__(parent)
         self.set_mode(args)
 
@@ -563,7 +566,7 @@ class MainFrame(qtw.QWidget, LBase):
         self.use_pylint.setFocus()
 
         self.show()
-        sys.exit(app.exec_())
+        sys.exit(self.app.exec_())
 
     def add_combobox_row(self, labeltext, itemlist, initial='', button=None):
         self.row += 1
@@ -637,7 +640,8 @@ class MainFrame(qtw.QWidget, LBase):
     def doe(self):
         """Zoekactie uitvoeren en resultaatscherm tonen"""
         test = self.linters.checkedButton() or ''
-        if test: test = test.text()
+        if test:
+            test = test.text()
         mld = self.check_linter(test)
         if not mld and self.mode == Mode.standard.value:
             mld = self.checkpath(str(self.vraag_dir.currentText()))
@@ -706,13 +710,12 @@ class MainFrame(qtw.QWidget, LBase):
             if canceled:
                 return
 
-        self.do_checks.do_action()
-        ## if len(self.do_checks.rpt) == 1:
-            ## qtw.QMessageBox.information(self, self.resulttitel, "Niks gedaan",
-                                        ## qtw.QMessageBox.Ok)
-        ## else:
-            ## dlg = Results(self, common_part)
+        self.execute_action()
         dlg = Results(self, common_part)
+
+    @waiting_cursor
+    def execute_action(self):
+        self.do_checks.do_action()
 
     def zoekdir(self):
         """event handler voor 'zoek in directory'"""
@@ -751,7 +754,6 @@ class MainFrame(qtw.QWidget, LBase):
         dlg = FilterOptions(self).exec_()
         if dlg == qtw.QDialog.Accepted:
             self.update_blacklistfile()
-
 
     def get_output_filename(self, name, fromname=''):
         if fromname and '<ignore>' in name:
