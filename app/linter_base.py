@@ -203,10 +203,8 @@ class LBase(object):
                 'exclude_exts': ['pyc', 'pyo', 'so', 'pck'],
                 'include_exts': ['py', 'pyw', ''],
                 'exclude_files': ['.hgignore', '.gitignore'],
-                'include_shebang': ['python', 'python3'],
-                    }
+                'include_shebang': ['python', 'python3'], }
             self.update_blacklistfile()
-        print(self.blacklist)
 
     def update_blacklistfile(self, data):
         with blacklist.open('w') as _blf:

@@ -9,8 +9,8 @@ import subprocess
 
 lintdict = collections.OrderedDict([
     ('pylint', {'command': ('pylint3', '{}')}),
-    ('flake8', {'command': ('python3', '-m', 'flake8', '{}')}),
-    ])
+    ('flake8', {'command': ('python3', '-m', 'flake8', '{}')}), ])
+
 
 class Linter(object):
     """interpreteren van de parameters en aansturen van de zoek/vervang routine
@@ -88,8 +88,8 @@ class Linter(object):
                     continue
                 if self.p['subdirs']:
                     self.subdirs(entry, level=level)
-                else:
-                    print('skip subdirectory')
+                ## else:
+                    ## print('skip subdirectory')
             elif os.path.islink(entry) and not self.p['follow_symlinks']:
                 pass
             else:
@@ -120,11 +120,8 @@ class Linter(object):
     def do_action(self):
         for name in self.filenames:
             props = lintdict[self.p['linter'].lower()]
-            go = subprocess.run([x.replace('{}', '{}'.format(name))
-                                    for x in props['command']],
-                                stdout=subprocess.PIPE,
-                                ## stderr=subprocess.STDOUT,
-                                )
+            command = [x.replace('{}', '{}'.format(name)) for x in props['command']]
+            go = subprocess.run(command, stdout=subprocess.PIPE)
             if not go.stdout:
                 self.results[name] = 'No results for {}'.format(name)
             else:

@@ -4,7 +4,6 @@ import pathlib
 import datetime
 import subprocess
 from types import SimpleNamespace
-import settings
 
 ROOT = pathlib.Path.home() / '.linters'
 CMD = {
@@ -12,6 +11,7 @@ CMD = {
     'flake8': ('python3', '-m', 'flake8', '<src>')}
 origpath = sys.path
 sys.path.insert(0, str(pathlib.Path.home() / 'bin'))
+import settings
 sys.path = origpath
 do_not_lint = settings.fcgi_repos + settings.private_repos + settings.non_deploy_repos
 all_repos = settings.all_repos + settings.git_repos
