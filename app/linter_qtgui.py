@@ -12,6 +12,19 @@ from .linter_base import iconame, LBase, log, Mode
 from .linter_exec import Linter
 common_path_txt = 'De bestanden staan allemaal in of onder de directory "{}"'
 TXTW = 200
+SEP = ', '
+
+
+def configure_pylint():
+    """open pylint configuration in editor
+    """
+    subprocess.run(['xdg-open',
+                    os.path.join(os.path.expanduser('~'), '.pylintrc')])
+
+
+def configure_flake8():
+    subprocess.run(['xdg-open',
+                    os.path.join(os.path.expanduser('~'), '.config', 'flake8')])
 
 
 def waiting_cursor(func):
@@ -41,17 +54,17 @@ class FilterOptions(qtw.QDialog):
         gbox.addWidget(qtw.QLabel("Directory names:", self), row, 0)
         self.skipdirs = qtw.QLineEdit(self)
         self.skipdirs.setMinimumWidth(200)
-        self.skipdirs.setText(', '.join(self.parent.blacklist['exclude_dirs']))
+        self.skipdirs.setText(SEP.join(self.parent.blacklist['exclude_dirs']))
         gbox.addWidget(self.skipdirs, row, 1)
         row += 1
         gbox.addWidget(qtw.QLabel("File extensions:", self), row, 0)
         self.skipexts = qtw.QLineEdit(self)
-        self.skipexts.setText(', '.join(self.parent.blacklist['exclude_exts']))
+        self.skipexts.setText(SEP.join(self.parent.blacklist['exclude_exts']))
         gbox.addWidget(self.skipexts, row, 1)
         row += 1
         gbox.addWidget(qtw.QLabel("File names:", self), row, 0)
         self.skipfiles = qtw.QLineEdit(self)
-        self.skipfiles.setText(', '.join(self.parent.blacklist['exclude_files']))
+        self.skipfiles.setText(SEP.join(self.parent.blacklist['exclude_files']))
         gbox.addWidget(self.skipfiles, row, 1)
         row += 1
         gbox.addWidget(qtw.QLabel("", self), row, 0)
@@ -60,13 +73,13 @@ class FilterOptions(qtw.QDialog):
         row += 1
         gbox.addWidget(qtw.QLabel("File extensions:", self), row, 0)
         self.do_exts = qtw.QLineEdit(self)
-        self.do_exts.setText(', '.join(self.parent.blacklist['include_exts']))
+        self.do_exts.setText(SEP.join(self.parent.blacklist['include_exts']))
         gbox.addWidget(self.do_exts, row, 1)
         row += 1
         gbox.addWidget(qtw.QLabel("Shebang lines:", self), row, 0)
-        self.do_shbs = qtw.QLineEdit(self)
-        self.do_shbs.setText(', '.join(self.parent.blacklist['include_shebang']))
-        gbox.addWidget(self.do_shbs, row, 1)
+        self.do_bangs = qtw.QLineEdit(self)
+        self.do_bangs.setText(SEP.join(self.parent.blacklist['include_shebang']))
+        gbox.addWidget(self.do_bangs, row, 1)
         row += 1
         gbox.addWidget(qtw.QLabel("", self), row, 0)
         vbox.addLayout(gbox)
@@ -87,11 +100,11 @@ class FilterOptions(qtw.QDialog):
     def accept(self):
         """transfer chosen options to parent"""
         self.parent.blacklist = {
-            'exclude_dirs': ['__pycache__', '.hg', '.git'],
-            'include_exts': ['pyc', 'pyo', '.so'],
-            'include_exts': ['py', 'pyw', ''],
-            'exclude_files': ['.hgignore', '.gitignore'],
-            'include_shebang': ['python', 'python3'], }
+            'exclude_dirs': [x for x in self.skipdirs.text().split(SEP)],
+            'exclude_exts': [x for x in self.skipexts.text().split(SEP)],
+            'include_exts': [x for x in self.do_exts.text().split(SEP)],
+            'exclude_files': [x for x in self.skipfiles.text().split(SEP)],
+            'include_shebang': [x for x in self.do_bangs.text().split(SEP)], }
         super().accept()
 
 
@@ -372,8 +385,6 @@ class Results(qtw.QDialog):
             result = list(item)
             if toonpad and self.parent.mode == Mode.multi.value:
                 result[0] = self.common + result[0]
-            ## elif not toonpad and self.parent.apptype != 'multi':
-                ## result[0] = result[0].split(os.sep)[-1]
             if comma:
                 writer.writerow(result)
             else:
@@ -408,7 +419,7 @@ class Results(qtw.QDialog):
             return
         # TODO:
         # - break up results into parts pertaining to one file
-        # - build dest filename ccording to self.parent.newquietoptions['pattern']
+        # - build dest filename according to self.parent.newquietoptions['pattern']
         # - write output to the files (see the above code)
 
     def help(self):
@@ -422,13 +433,12 @@ class Results(qtw.QDialog):
         """
         clp = qtw.QApplication.clipboard()
         clp.setText('\n'.join(self.get_results()))
-        ## clp.setText(self.get_results)
 
     def goto_result(self):
         """open the file containing the checked lines
         """
         fname = self.filelist.currentText()
-        prog, fileopt, lineopt = self.parent.editor_option
+        prog, fileopt, _ = self.parent.editor_option
         subprocess.run([prog, fileopt.format(fname)])  # , lineopt.format(line)])
 
 
@@ -464,7 +474,7 @@ class MainFrame(qtw.QWidget, LBase):
         if self.linter_from_input == 'pylint':
             self.use_pylint.setChecked(True)
         self.conf_pylint = qtw.QPushButton('Configure', self)
-        self.conf_pylint.clicked.connect(self.configure_pylint)
+        self.conf_pylint.clicked.connect(configure_pylint)
         box.addWidget(self.conf_pylint)
         box.addStretch()
         self.grid.addLayout(box, self.row, 1)
@@ -477,7 +487,7 @@ class MainFrame(qtw.QWidget, LBase):
         if self.linter_from_input == 'flake8':
             self.use_flake8.setChecked(True)
         self.conf_flake8 = qtw.QPushButton('Configure', self)
-        self.conf_flake8.clicked.connect(self.configure_flake8)
+        self.conf_flake8.clicked.connect(configure_flake8)
         box.addWidget(self.conf_flake8)
         box.addStretch()
         self.grid.addLayout(box, self.row, 1)
@@ -490,7 +500,6 @@ class MainFrame(qtw.QWidget, LBase):
             box.addStretch()
             self.grid.addLayout(box, self.row, 1)
         elif self.mode == Mode.standard.value:
-            ## self.grid.addWidget(qtw.QLabel('In directory:', self), self.row, 0)
             initial = ''
             if self.fnames:
                 initial = self.fnames[0]
@@ -515,6 +524,11 @@ class MainFrame(qtw.QWidget, LBase):
                 'Use global whitelist/blacklist',
                 toggle=True,
                 button=self.conf_filter)
+        if self.mode == Mode.standard.value:
+            self.row += 1
+            self.vraag_repo = self.add_checkbox_row(
+                'Check repository files only (also does subdirectories)',
+                self.p['fromrepo'])
         if self.mode != Mode.single.value or os.path.isdir(self.fnames[0]):
             txt = ''
             if self.mode == Mode.multi.value:
@@ -539,12 +553,6 @@ class MainFrame(qtw.QWidget, LBase):
             'Output to file(s) directly',
             toggle=self.dest_from_input,
             button=self.conf_quiet)
-        ## box = qtw.QHBoxLayout()
-        ## self.quiet = qtw.QCheckBox('Output to file(s) directly', self)
-        ## box.addWidget(self.quiet)
-        ## box.addWidget(self.conf_quiet)
-        ## box.addStretch()
-        ## self.grid.addLayout(box, self.row, 1)
 
         self.row += 1
         hbox = qtw.QHBoxLayout()
@@ -562,7 +570,6 @@ class MainFrame(qtw.QWidget, LBase):
         vbox.addLayout(self.grid)
 
         self.setLayout(vbox)
-        ## self.resize(250, 150)
         self.use_pylint.setFocus()
 
         self.show()
@@ -644,11 +651,15 @@ class MainFrame(qtw.QWidget, LBase):
             test = test.text()
         mld = self.check_linter(test)
         if not mld and self.mode == Mode.standard.value:
-            mld = self.checkpath(str(self.vraag_dir.currentText()))
+            mld = self.checkpath(self.vraag_dir.currentText())
         if not mld:
-            if self.mode != Mode.single.value or os.path.isdir(self.fnames[0]):
+            if self.mode == Mode.standard.value and self.vraag_repo.isChecked():
+                mld = self.checkrepo(self.vraag_repo.isChecked(),
+                                     self.vraag_dir.currentText())
+            elif self.mode != Mode.single.value or os.path.isdir(self.fnames[0]):
                 self.checksubs(self.vraag_subs.isChecked(),
-                               self.vraag_links.isChecked(), self.vraag_diepte.value())
+                               self.vraag_links.isChecked(),
+                               self.vraag_diepte.value())
             elif self.mode == Mode.single.value and os.path.islink(self.fnames[0]):
                 self.p["follow_symlinks"] = True
         if not mld and self.vraag_quiet.isChecked():
@@ -676,7 +687,6 @@ class MainFrame(qtw.QWidget, LBase):
                 len(self.fnames) == 1 and os.path.isfile(self.fnames[0])):
             pass
         else:
-            ## print(self.skipdirs_overslaan, self.skipfiles_overslaan)
             go_on = self.ask_skipdirs.isChecked() or self.ask_skipfiles.isChecked()
             canceled = False
             while go_on:
@@ -723,17 +733,6 @@ class MainFrame(qtw.QWidget, LBase):
                                                    self.vraag_dir.currentText())
         if dlg:
             self.vraag_dir.setEditText(dlg)
-
-    def configure_pylint(self):
-        """open pylint configuration in editor
-        """
-        self.edit_conf(os.path.join(os.path.expanduser('~'), '.pylintrc'))
-
-    def configure_flake8(self):
-        self.edit_conf(os.path.join(os.path.expanduser('~'), '.config', 'flake8'))
-
-    def edit_conf(self, conf):
-        subprocess.run(['xdg-open', conf])
 
     def configure_quiet(self):
         dlg = QuietOptions(self).exec_()

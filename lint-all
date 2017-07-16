@@ -5,5 +5,4 @@ from lint_core import lint_all
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('-p', '--project', nargs='+')
-args = parser.parse_args()
-result = lint_all(args)
+lint_all(parser.parse_args())

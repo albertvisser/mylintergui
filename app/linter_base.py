@@ -6,7 +6,7 @@ import os
 import pathlib
 import logging
 import enum
-## import pickle
+import subprocess
 import json
 
 BASE = pathlib.Path.home() / '.mylinter'
@@ -14,6 +14,12 @@ if not BASE.exists():
     BASE.mkdir()
 edfile = BASE / 'open_result'
 blacklist = BASE / 'donot_lint'
+initial_blacklist = {
+    'exclude_dirs': ['__pycache__', '.hg', '.git'],
+    'exclude_exts': ['pyc', 'pyo', 'so', 'pck'],
+    'include_exts': ['py', 'pyw', ''],
+    'exclude_files': ['.hgignore', '.gitignore'],
+    'include_shebang': ['python', 'python3'], }
 HERE = pathlib.Path(__file__).parent
 iconame = str(HERE / "find.ico")
 logfile = pathlib.Path(HERE) / '..' / 'logs' / 'linter.log'
@@ -50,7 +56,6 @@ class LBase(object):
     deze class bevat methoden die onafhankelijk zijn van de gekozen
     GUI-toolkit"""
 
-    ## def __init__(self, parent, apptype="", fnaam="", flist=None):
     def __init__(self):
         """attributen die altijd nodig zijn
         """
@@ -74,10 +79,9 @@ class LBase(object):
             'fname': '<linter>_results-<date>',
             'ignore': '~/projects'}
         self._words = ('woord', 'woord', 'spec', 'pad', )
-        self._optkeys = ("subdirs",)
+        self._optkeys = ("subdirs", "fromrepo")
         for key in self._optkeys:
             self.p[key] = False
-        self._options = ("searchsubdirs",)
         self.readini()
         self.fnames = []
         self.get_editor_option()
@@ -129,11 +133,6 @@ class LBase(object):
                                 if line.endswith("\\") or line.endswith("/"):
                                     line = line[:-1]
                                 self.hier = pathlib.Path(line).resolve().parent
-                            ## if line.endswith("\\") or line.endswith("/"):
-                                ## # directory afwandelen en onderliggende files verzamelen
-                                ## pass
-                            ## else:
-                                ## self.fnames.append(line)
                             self.fnames.append(line)
                     except FileNotFoundError:
                         raise ValueError('Input name is not a usable file for multi '
@@ -159,12 +158,18 @@ class LBase(object):
         """
         loc, mfile, ofile = get_iniloc()
         if loc.exists():
-            with mfile.open() as _in:
-                self._mru_items = json.load(_in)
-            with ofile.open() as _in:
-                opts = json.load(_in)
+            try:
+                with mfile.open() as _in:
+                    self._mru_items = json.load(_in)
+            except FileNotFoundError:
+                pass
+            try:
+                with ofile.open() as _in:
+                    opts = json.load(_in)
+            except FileNotFoundError:
+                pass
             for key in self._optkeys:
-                self.p[key] = opts[key]
+                self.p[key] = opts.get(key, False)
             for key in self.quiet_keys:
                 if key in opts:
                     self.quiet_options[key] = opts[key]
@@ -198,15 +203,10 @@ class LBase(object):
             with blacklist.open() as _blf:
                 self.blacklist = json.load(_blf)
         except FileNotFoundError:
-            self.blacklist = {
-                'exclude_dirs': ['__pycache__', '.hg', '.git'],
-                'exclude_exts': ['pyc', 'pyo', 'so', 'pck'],
-                'include_exts': ['py', 'pyw', ''],
-                'exclude_files': ['.hgignore', '.gitignore'],
-                'include_shebang': ['python', 'python3'], }
+            self.blacklist = initial_blacklist
             self.update_blacklistfile()
 
-    def update_blacklistfile(self, data):
+    def update_blacklistfile(self):
         with blacklist.open('w') as _blf:
             json.dump(self.blacklist, _blf, indent=4)
 
@@ -220,19 +220,21 @@ class LBase(object):
 
     def checkpath(self, item):
         "controleer zoekpad"
+        test = pathlib.Path(item).expanduser().resolve()
         if not item:
             mld = ("Please enter or select a directory")
-        elif not os.path.exists(item):
+        elif not test.exists():
             mld = "De opgegeven directory bestaat niet"
         else:
             mld = ""
+            test = str(test)
             try:
-                self._mru_items["dirs"].remove(item)
+                self._mru_items["dirs"].remove(test)
             except ValueError:
                 pass
-            self._mru_items["dirs"].insert(0, item)
-            self.s += "\nin {0}".format(item)
-            self.p["pad"] = item
+            self._mru_items["dirs"].insert(0, test)
+            self.s += "\nin {0}".format(test)
+            self.p["pad"] = test
             self.p['filelist'] = ''
         return mld
 
@@ -257,4 +259,25 @@ class LBase(object):
                     patt_ok = True
         if not dest_ok or not patt_ok:
             mld = 'Please configure all options for quiet mode'
+        return mld
+
+    def checkrepo(self, is_checked, path):
+        command = mld = ''
+        repo_loc = pathlib.Path(path).expanduser().resolve()
+        if is_checked:
+            test1 = repo_loc / '.hg'
+            test2 = repo_loc / '.git'
+            if test1.exists():
+                command = ['hg', 'manifest']
+            elif test2.exists():
+                command = ['git', 'ls-files']
+            else:
+                mld = 'De opgegeven directory is geen (hg of git) repository'
+            if command:
+                result = subprocess.run(command, stdout=subprocess.PIPE).stdout
+                self.p['filelist'] = [str(repo_loc / name) for name in
+                                      str(result, encoding='utf-8').split('\n')
+                                      if name]
+                self.p['pad'] = ''
+        self.p['fromrepo'] = is_checked
         return mld

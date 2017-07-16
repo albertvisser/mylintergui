@@ -5,9 +5,8 @@ de uitvoering wordt gestuurd door in een dictionary verzamelde parameters
 import os
 import collections
 import subprocess
-## from .linter_base import log, Mode
 
-lintdict = collections.OrderedDict([
+cmddict = collections.OrderedDict([
     ('pylint', {'command': ('pylint3', '{}')}),
     ('flake8', {'command': ('python3', '-m', 'flake8', '{}')}), ])
 
@@ -16,7 +15,6 @@ class Linter(object):
     """interpreteren van de parameters en aansturen van de zoek/vervang routine
     """
     def __init__(self, **parms):
-        ## print parms
         self.p = {
             'linter': '',
             'pad': '',
@@ -24,7 +22,8 @@ class Linter(object):
             'subdirs': False,
             "follow_symlinks": False,
             "maxdepth": 5,
-            'blacklist': []}
+            'fromrepo': False,
+            'blacklist': {}}
         for x in parms:
             if x in self.p:
                 self.p[x] = parms[x]
@@ -40,26 +39,46 @@ class Linter(object):
             self.rpt.append('Fout: geen linter opgegeven')
         if self.rpt:
             self.ok = False
-            specs = "Actie niet mogelijk"
             return
         specs = ["Gecontroleerd met '{}'".format(self.p['linter'])]
         self.filenames = []
         self.dirnames = set()
-        if self.p['pad']:
-            specs.append(" in {}".format(self.p['pad']))
-            self.subdirs(self.p['pad'])
+        if self.p['fromrepo']:
+            specs.append(" from repo manifest in {}".format(self.p['pad']))
+            self.get_from_repo()
         else:
-            if len(self.p['filelist']) == 1:
-                specs.append(" in {}".format(self.p['filelist'][0]))
+            if self.p['pad']:
+                specs.append(" in {}".format(self.p['pad']))
+                self.subdirs(self.p['pad'])
             else:
-                specs.append(" in opgegeven bestanden/directories")
-            for entry in self.p['filelist']:
-                self.subdirs(entry, is_list=False)
-        if self.p['subdirs']:
-            specs.append(" en onderliggende directories")
+                if len(self.p['filelist']) == 1:
+                    specs.append(" in {}".format(self.p['filelist'][0]))
+                else:
+                    specs.append(" in opgegeven bestanden/directories")
+                for entry in self.p['filelist']:
+                    self.subdirs(entry, is_list=False)
+            if self.p['subdirs']:
+                specs.append(" en onderliggende directories")
         self.rpt.insert(0, "".join(specs))
         self.results = {}
         self.specs = specs
+
+    def get_from_repo(self):
+        """get files from repo manifest
+        also apply blacklisted names
+        """
+        if not self.p['filelist']:
+            # get files from manifest (in case of standalone version of backend)
+            # let's assume we'll always be going by the frontend for now
+            pass
+        self.filenames = []
+        for entry in self.p['filelist']:
+            if os.path.basename(entry) in self.p['blacklist']['exclude_files']:
+                continue
+            test = os.path.splitext(entry)[1].lstrip('.')
+            if test not in self.p['blacklist']['include_exts']:
+                continue
+            self.filenames.append(entry)
 
     def subdirs(self, pad, is_list=True, level=0):
         """recursieve routine voor zoek/vervang in subdirectories
@@ -88,8 +107,6 @@ class Linter(object):
                     continue
                 if self.p['subdirs']:
                     self.subdirs(entry, level=level)
-                ## else:
-                    ## print('skip subdirectory')
             elif os.path.islink(entry) and not self.p['follow_symlinks']:
                 pass
             else:
@@ -119,7 +136,7 @@ class Linter(object):
 
     def do_action(self):
         for name in self.filenames:
-            props = lintdict[self.p['linter'].lower()]
+            props = cmddict[self.p['linter'].lower()]
             command = [x.replace('{}', '{}'.format(name)) for x in props['command']]
             go = subprocess.run(command, stdout=subprocess.PIPE)
             if not go.stdout:
