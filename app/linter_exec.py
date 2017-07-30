@@ -24,9 +24,9 @@ class Linter(object):
             "maxdepth": 5,
             'fromrepo': False,
             'blacklist': {}}
-        for x in parms:
+        for x, y in parms.items():
             if x in self.p:
-                self.p[x] = parms[x]
+                self.p[x] = y
             else:
                 raise TypeError('Onbekende optie ' + x)
         self.ok = True

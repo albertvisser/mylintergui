@@ -653,7 +653,7 @@ class MainFrame(qtw.QWidget, LBase):
         if not mld and self.mode == Mode.standard.value:
             mld = self.checkpath(self.vraag_dir.currentText())
         if not mld:
-            if self.mode == Mode.standard.value and self.vraag_repo.isChecked():
+            if self.mode == Mode.standard.value:  # and self.vraag_repo.isChecked():
                 mld = self.checkrepo(self.vraag_repo.isChecked(),
                                      self.vraag_dir.currentText())
             elif self.mode != Mode.single.value or os.path.isdir(self.fnames[0]):

@@ -2,12 +2,20 @@
 
 het meeste hiervan bevind zich in een class die als mixin gebruikt wordt
 """
+import sys
 import os
 import pathlib
 import logging
 import enum
 import subprocess
 import json
+import importlib
+origpath = sys.path
+sys.path.insert(0, str(pathlib.Path.home() / 'bin'))
+## importlib.import_module('settings')
+import settings
+sys.path = origpath
+DO_NOT_LINT = settings.fcgi_repos + settings.private_repos + settings.non_deploy_repos
 
 BASE = pathlib.Path.home() / '.mylinter'
 if not BASE.exists():
@@ -82,7 +90,7 @@ class LBase(object):
         self._optkeys = ("subdirs", "fromrepo")
         for key in self._optkeys:
             self.p[key] = False
-        self.readini()
+        self.readini()  # kan eigenlijk pas als bekend is waar we gaan zoeken
         self.fnames = []
         self.get_editor_option()
         self.build_blacklist()
@@ -267,14 +275,19 @@ class LBase(object):
         if is_checked:
             test1 = repo_loc / '.hg'
             test2 = repo_loc / '.git'
-            if test1.exists():
+            if repo_loc.stem in DO_NOT_LINT:
+                mld = 'De opgegeven repository is aangemerkt als do-not-lint'
+            elif test1.exists():
                 command = ['hg', 'manifest']
+                cwd = test1
             elif test2.exists():
                 command = ['git', 'ls-files']
+                cwd = test2
             else:
                 mld = 'De opgegeven directory is geen (hg of git) repository'
             if command:
-                result = subprocess.run(command, stdout=subprocess.PIPE).stdout
+                result = subprocess.run(command, cwd=str(cwd),
+                    stdout=subprocess.PIPE).stdout
                 self.p['filelist'] = [str(repo_loc / name) for name in
                                       str(result, encoding='utf-8').split('\n')
                                       if name]
