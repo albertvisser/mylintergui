@@ -1,4 +1,4 @@
-"""AFRIFT PyQt versie omgebouwd naar gebruik pylint / flake8
+"""AFRIFT PyQt5 versie omgebouwd naar gebruik pylint / flake8
 """
 import os
 import sys
@@ -295,7 +295,7 @@ class Results(qtw.QDialog):
         label_txt = "{} ({} items)".format(self.parent.do_checks.rpt[0],
                                            len(self.parent.do_checks.results))
         if self.parent.mode == Mode.multi.value:
-            label_txt += '\n' + common_path_txt.format(self.common)
+            label_txt += '\n' + common_path_txt.format(self.common.rstrip(os.sep))
         self.txt = qtw.QLabel(label_txt, self)
         hbox.addWidget(self.txt)
         vbox.addLayout(hbox)
@@ -508,6 +508,8 @@ class MainFrame(qtw.QWidget, LBase):
             self.vraag_dir = self.add_combobox_row("In directory:",
                                                    self._mru_items["dirs"],
                                                    initial=initial, button=self.zoek)
+            self.vraag_dir.setCompleter(None)
+            self.vraag_dir.editTextChanged[str].connect(self.check_loc)
         elif self.mode == Mode.multi.value:
             self.grid.addWidget(qtw.QLabel('In de volgende files/directories:', self),
                                 self.row, 0, 1, 3)
@@ -625,6 +627,17 @@ class MainFrame(qtw.QWidget, LBase):
             new_value = core.Qt.CaseInsensitive
         self.vraag_zoek.setAutoCompletionCaseSensitivity(new_value)
 
+    def check_loc(self, txt):
+        """update location to get settings from
+        """
+        log('in check_loc: txt={}'.format(txt))
+        if os.path.exists(txt) and not txt.endswith(os.path.sep):
+            self.readini(txt)
+            ## self.vraag_dir.clear()
+            ## self.vraag_dir.addItems(self._mru_items["dirs"])
+            self.vraag_subs.setChecked(self.p["subdirs"])
+            self.vraag_repo.setChecked(self.p["fromrepo"])
+
     def keyPressEvent(self, event):
         """event handler voor toetsaanslagen"""
         if event.key() == core.Qt.Key_Escape:
@@ -634,12 +647,14 @@ class MainFrame(qtw.QWidget, LBase):
         if self.mode == Mode.single.value:
             test = self.fnames[0]
         elif self.mode == Mode.multi.value:
-            test = os.path.commonprefix(self.fnames)
-            if test in self.fnames:
-                pass
-            else:
-                while test and not os.path.exists(test):
-                    test = test[:-1]
+            test = os.path.commonpath(self.fnames)
+            ## if test in self.fnames:
+                ## pass
+            ## else:
+                ## while test and not os.path.exists(test):
+                    ## test = test[:-1]
+            if os.path.isfile(test):
+                test = os.dirname(test) + os.sep
         else:
             test = self.p["pad"] + os.sep
         return test

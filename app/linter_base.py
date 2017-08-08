@@ -1,4 +1,4 @@
-"""Gui-onafhankelijke code t.b.v. Afrift applicaties
+"""MyLinterGUI Gui-toolkit-onafhankelijke code
 
 het meeste hiervan bevind zich in een class die als mixin gebruikt wordt
 """
@@ -40,12 +40,16 @@ def log(message):
         logging.info(message)
 
 
-def get_iniloc():
-    here = str(pathlib.Path.cwd()).replace(os.environ['HOME'] + '/', '~').replace(
-        '/', '_')
-    if here[0] == '_':
-        here = here[1:]
-    iniloc = BASE / here
+def get_iniloc(path=None):
+    path = pathlib.Path(path) if path else pathlib.Path.cwd()
+    if path == pathlib.Path.home():
+        here = str(path)[1:]
+    else:
+        try:
+            here = '~' + str(path.relative_to(pathlib.Path.home()))
+        except ValueError:
+            here = str(path)[1:]
+    iniloc = BASE / here.replace('/', '_')
     mrufile = iniloc / 'mru_items.json'
     optsfile = iniloc / 'options.json'
     return iniloc, mrufile, optsfile
@@ -90,7 +94,6 @@ class LBase(object):
         self._optkeys = ("subdirs", "fromrepo")
         for key in self._optkeys:
             self.p[key] = False
-        self.readini()  # kan eigenlijk pas als bekend is waar we gaan zoeken
         self.fnames = []
         self.get_editor_option()
         self.build_blacklist()
@@ -123,6 +126,9 @@ class LBase(object):
                 inp = os.path.expanduser(inp)
             if inp:
                 self.fnames = [inp]
+                self.readini(inp)
+            else:
+                self.readini()
         elif self.mode == Mode.single.value:  # data is file om te verwerken
             self.title += " - single file version"
             if not inp:
@@ -130,6 +136,7 @@ class LBase(object):
             inp = pathlib.Path(inp).resolve()
             self.fnames = [str(inp)]
             self.hier = inp.parent
+            self.readini(hier)
         elif self.mode == Mode.multi.value:  # data is file met namen om te verwerken
             self.title += " - file list version"
             if len(inp) == 1:
@@ -150,6 +157,7 @@ class LBase(object):
             else:
                 raise ValueError('Need filename or list of files for application type'
                                  ' "multi"')
+            self.readini(os.path.commonpath(self.fnames))
         else:
             raise ValueError('Execution mode could not be determined from input')
 
@@ -159,12 +167,12 @@ class LBase(object):
             if name.endswith("\\") or name.endswith("/"):
                 self.fnames[ix] = name[:-1]
 
-    def readini(self):
+    def readini(self, path=None):
         """lees ini file (met eerder gebruikte zoekinstellingen)
 
         geen settings file of niet te lezen dan initieel laten
         """
-        loc, mfile, ofile = get_iniloc()
+        loc, mfile, ofile = get_iniloc(path)
         if loc.exists():
             try:
                 with mfile.open() as _in:
@@ -182,9 +190,9 @@ class LBase(object):
                 if key in opts:
                     self.quiet_options[key] = opts[key]
 
-    def schrijfini(self):
+    def schrijfini(self, path=None):
         """huidige settings toevoegen dan wel vervangen in ini file"""
-        loc, mfile, ofile = get_iniloc()
+        loc, mfile, ofile = get_iniloc(path)
         if not loc.exists():
             loc.mkdir()
         with mfile.open("w") as _out:
@@ -228,22 +236,24 @@ class LBase(object):
 
     def checkpath(self, item):
         "controleer zoekpad"
-        test = pathlib.Path(item).expanduser().resolve()
         if not item:
             mld = ("Please enter or select a directory")
-        elif not test.exists():
-            mld = "De opgegeven directory bestaat niet"
         else:
-            mld = ""
-            test = str(test)
             try:
-                self._mru_items["dirs"].remove(test)
-            except ValueError:
-                pass
-            self._mru_items["dirs"].insert(0, test)
-            self.s += "\nin {0}".format(test)
-            self.p["pad"] = test
-            self.p['filelist'] = ''
+                test = pathlib.Path(item).expanduser().resolve()
+            except FileNotFoundError:
+                mld = "De opgegeven directory bestaat niet"
+            else:
+                mld = ""
+                test = str(test)
+                try:
+                    self._mru_items["dirs"].remove(test)
+                except ValueError:
+                    pass
+                self._mru_items["dirs"].insert(0, test)
+                self.s += "\nin {0}".format(test)
+                self.p["pad"] = test
+                self.p['filelist'] = ''
         return mld
 
     def checksubs(self, *items):
