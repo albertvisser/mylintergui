@@ -15,7 +15,7 @@ sys.path.insert(0, str(pathlib.Path.home() / 'bin'))
 ## importlib.import_module('settings')
 import settings
 sys.path = origpath
-DO_NOT_LINT = settings.fcgi_repos + settings.private_repos + settings.non_deploy_repos
+DO_NOT_LINT = settings.DO_NOT_LINT
 
 BASE = pathlib.Path.home() / '.mylinter'
 if not BASE.exists():
