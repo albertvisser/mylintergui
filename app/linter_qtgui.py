@@ -575,7 +575,11 @@ class MainFrame(qtw.QWidget, LBase):
         self.use_pylint.setFocus()
 
         self.show()
-        sys.exit(self.app.exec_())
+        if self.skip_screen:
+            self.doe()
+            self.close()
+        else:
+            sys.exit(self.app.exec_())
 
     def add_combobox_row(self, labeltext, itemlist, initial='', button=None):
         self.row += 1
@@ -683,7 +687,8 @@ class MainFrame(qtw.QWidget, LBase):
             qtw.QMessageBox.critical(self, self.fouttitel, mld, qtw.QMessageBox.Ok)
             return
 
-        self.schrijfini()
+        if not self.skip_screen:
+            self.schrijfini()
         self.p['blacklist'] = self.blacklist
         self.do_checks = Linter(**self.p)
         if not self.do_checks.ok:
