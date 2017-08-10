@@ -136,7 +136,7 @@ class LBase(object):
             inp = pathlib.Path(inp).resolve()
             self.fnames = [str(inp)]
             self.hier = inp.parent
-            self.readini(hier)
+            self.readini(self.hier)
         elif self.mode == Mode.multi.value:  # data is file met namen om te verwerken
             self.title += " - file list version"
             if len(inp) == 1:
