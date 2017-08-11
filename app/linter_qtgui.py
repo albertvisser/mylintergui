@@ -688,7 +688,8 @@ class MainFrame(qtw.QWidget, LBase):
             return
 
         if not self.skip_screen:
-            self.schrijfini()
+            loc = self.p.get('pad', '') or os.path.dirname(self.p['filelist'][0])
+            self.schrijfini(loc)
         self.p['blacklist'] = self.blacklist
         self.do_checks = Linter(**self.p)
         if not self.do_checks.ok:
