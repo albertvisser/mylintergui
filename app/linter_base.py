@@ -29,7 +29,7 @@ initial_blacklist = {
     'exclude_files': ['.hgignore', '.gitignore'],
     'include_shebang': ['python', 'python3'], }
 HERE = pathlib.Path(__file__).parent
-iconame = str(HERE / "find.ico")
+iconame = str(HERE / "lintergui.png")
 logfile = pathlib.Path(HERE) / '..' / 'logs' / 'linter.log'
 logging.basicConfig(filename=str(logfile), level=logging.DEBUG,
                     format='%(asctime)s %(message)s')
@@ -41,6 +41,10 @@ def log(message):
 
 
 def get_iniloc(path=None):
+    """get location for ini file
+
+    Note: pathlib.Path returns the same path when path is already a path object
+    """
     path = pathlib.Path(path) if path else pathlib.Path.cwd()
     if path == pathlib.Path.home():
         here = str(path)[1:]
@@ -115,17 +119,9 @@ class LBase(object):
             inp = ''
 
         if self.mode == Mode.standard.value:
-            self.hier = pathlib.Path.cwd()
-            if inp.startswith('...'):   # TODO: kan dit slimmer m.b.v. pathlib?
-                pass
-            elif inp.startswith('..'):
-                inp = inp.replace('..', str(self.hier.parent), 1)
-            elif inp.startswith('.'):
-                inp = inp.replace('.', str(self.hier), 1)
-            elif inp.startswith('~'):
-                inp = os.path.expanduser(inp)
             if inp:
-                self.fnames = [inp]
+                inp = pathlib.Path(inp).expanduser().resolve()
+                self.fnames = [str(inp)]
                 self.readini(inp)
             else:
                 self.readini()
@@ -296,7 +292,7 @@ class LBase(object):
             else:
                 mld = 'De opgegeven directory is geen (hg of git) repository'
             if command:
-                result = subprocess.run(command, cwd=str(cwd),
+                result = subprocess.run(command, cwd=str(cwd), # moet dit niet repo_loc zijn?
                     stdout=subprocess.PIPE).stdout
                 self.p['filelist'] = [str(repo_loc / name) for name in
                                       str(result, encoding='utf-8').split('\n')
