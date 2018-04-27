@@ -73,12 +73,12 @@ class Linter(object):
             pass
         self.filenames = []
         for entry in self.p['filelist']:
-            hlp = pathlib.Path(entry)
-            ## if os.path.basename(entry) in self.p['blacklist']['exclude_files']:
-            if hlp.name in self.p['blacklist']['exclude_files']:
+            ## hlp = pathlib.Path(entry)
+            ## if hlp.name in self.p['blacklist']['exclude_files']:
+            if os.path.basename(entry) in self.p['blacklist']['exclude_files']:
                 continue
-            ## test = os.path.splitext(entry)[1].lstrip('.')
-            test = hlp.suffix.lstrip('.')
+            ## test = hlp.suffix.lstrip('.')
+            test = os.path.splitext(entry)[1].lstrip('.')
             if test not in self.p['blacklist']['include_exts']:
                 continue
             self.filenames.append(entry)
