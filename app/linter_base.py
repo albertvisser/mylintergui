@@ -36,6 +36,8 @@ logging.basicConfig(filename=str(logfile), level=logging.DEBUG,
 
 
 def log(message):
+    """log only if debugging mode is on
+    """
     if 'DEBUG' in os.environ and os.environ["DEBUG"] != "0":
         logging.info(message)
 
@@ -60,6 +62,8 @@ def get_iniloc(path=None):
 
 
 class Mode(enum.Enum):
+    """execution modes
+    """
     single = 'f'
     standard = 'd'
     multi = 'l'
@@ -103,7 +107,10 @@ class LBase(object):
         self.build_blacklist()
 
     def set_mode(self, args):
-        # determine execution mode assuming command line parsing has already been done
+        """determine execution mode
+
+        assumes command line parsing has already been done
+        """
         self.linter_from_input = args.c
         self.dest_from_input = args.o
         self.skip_screen = args.s
@@ -199,6 +206,8 @@ class LBase(object):
             json.dump(opts, _out, indent=4)
 
     def get_editor_option(self):
+        """determine which editor to use and how
+        """
         try:
             test = edfile.read_text()
         except FileNotFoundError:
@@ -211,6 +220,8 @@ class LBase(object):
                               for x in test.strip().split('\n')]
 
     def build_blacklist(self):
+        """(re)write blacklist
+        """
         try:
             with blacklist.open() as _blf:
                 self.blacklist = json.load(_blf)
@@ -219,10 +230,14 @@ class LBase(object):
             self.update_blacklistfile()
 
     def update_blacklistfile(self):
+        """write back changed blacklist entries
+        """
         with blacklist.open('w') as _blf:
             json.dump(self.blacklist, _blf, indent=4)
 
     def check_linter(self, item):
+        """check linter options
+        """
         if not item:
             mld = 'Please choose a linter to use'
         else:
@@ -262,6 +277,8 @@ class LBase(object):
         self.p["maxdepth"] = depth
 
     def check_quiet_options(self):
+        """check settings for quiet mode
+        """
         mld = ''
         dest_ok = patt_ok = False
         if self.quiet_options:
@@ -276,6 +293,8 @@ class LBase(object):
         return mld
 
     def checkrepo(self, is_checked, path):
+        """check setting for "only do tracked files"
+        """
         command = mld = ''
         repo_loc = pathlib.Path(path).expanduser().resolve()
         if is_checked:
@@ -292,8 +311,8 @@ class LBase(object):
             else:
                 mld = 'De opgegeven directory is geen (hg of git) repository'
             if command:
-                result = subprocess.run(command, cwd=str(cwd), # moet dit niet repo_loc zijn?
-                    stdout=subprocess.PIPE).stdout
+                result = subprocess.run(command, cwd=str(cwd),  # moet dit niet repo_loc zijn?
+                                        stdout=subprocess.PIPE).stdout
                 self.p['filelist'] = [str(repo_loc / name) for name in
                                       str(result, encoding='utf-8').split('\n')
                                       if name]

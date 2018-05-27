@@ -138,6 +138,8 @@ class Linter(object):
                 self.filenames.append(entry)
 
     def do_action(self):
+        """do the linting
+        """
         for name in self.filenames:
             props = cmddict[self.p['linter'].lower()]
             command = [x.replace('{}', '{}'.format(name)) for x in props['command']]

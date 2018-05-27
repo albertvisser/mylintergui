@@ -1,3 +1,5 @@
+"""linter starter command line version
+"""
 import os
 import sys
 import pathlib
