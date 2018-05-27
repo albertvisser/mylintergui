@@ -184,6 +184,8 @@ class QuietOptions(qtw.QDialog):
             self.fname.setText(self.parent.dest_from_input)
 
     def browse(self):
+        """callback for selct
+        """
         pass
 
     def accept(self):
@@ -256,11 +258,15 @@ class SelectNames(qtw.QDialog):
         self.setLayout(vbox)
 
     def select_all(self):
+        """check/uncheck all boxes
+        """
         state = self.sel_all.isChecked()
         for chk in self.checklist:
             chk.setChecked(state)
 
     def invert_selection(self):
+        """check unchecked and uncheck checked
+        """
         for chk in self.checklist:
             chk.setChecked(not chk.isChecked())
 
@@ -395,6 +401,8 @@ class Results(qtw.QDialog):
         return text
 
     def refresh(self):
+        """callback for repeat action
+        """
         self.results = []
         self.lijst.clear()
         self.parent.do_checks.rpt = ["".join(self.parent.do_checks.specs)]
@@ -423,6 +431,8 @@ class Results(qtw.QDialog):
         # - write output to the files (see the above code)
 
     def help(self):
+        """suggest workflow
+        """
         qtw.QMessageBox.information(self, self.parent.title,
                                     "Select a line and doubleclick or press Ctrl-G"
                                     " to open the indicated file\n"
@@ -468,19 +478,6 @@ class MainFrame(qtw.QWidget, LBase):
         self.linters = qtw.QButtonGroup(self)
 
         box = qtw.QHBoxLayout()
-        self.use_pylint = qtw.QRadioButton('Pylint', self)
-        self.linters.addButton(self.use_pylint)
-        box.addWidget(self.use_pylint)
-        if self.linter_from_input == 'pylint':
-            self.use_pylint.setChecked(True)
-        self.conf_pylint = qtw.QPushButton('Configure', self)
-        self.conf_pylint.clicked.connect(configure_pylint)
-        box.addWidget(self.conf_pylint)
-        box.addStretch()
-        self.grid.addLayout(box, self.row, 1)
-
-        self.row += 1
-        box = qtw.QHBoxLayout()
         self.use_flake8 = qtw.QRadioButton('Flake8', self)
         self.linters.addButton(self.use_flake8)
         box.addWidget(self.use_flake8)
@@ -489,6 +486,19 @@ class MainFrame(qtw.QWidget, LBase):
         self.conf_flake8 = qtw.QPushButton('Configure', self)
         self.conf_flake8.clicked.connect(configure_flake8)
         box.addWidget(self.conf_flake8)
+        box.addStretch()
+        self.grid.addLayout(box, self.row, 1)
+
+        self.row += 1
+        box = qtw.QHBoxLayout()
+        self.use_pylint = qtw.QRadioButton('Pylint', self)
+        self.linters.addButton(self.use_pylint)
+        box.addWidget(self.use_pylint)
+        if self.linter_from_input == 'pylint':
+            self.use_pylint.setChecked(True)
+        self.conf_pylint = qtw.QPushButton('Configure', self)
+        self.conf_pylint.clicked.connect(configure_pylint)
+        box.addWidget(self.conf_pylint)
         box.addStretch()
         self.grid.addLayout(box, self.row, 1)
 
@@ -582,6 +592,8 @@ class MainFrame(qtw.QWidget, LBase):
             sys.exit(self.app.exec_())
 
     def add_combobox_row(self, labeltext, itemlist, initial='', button=None):
+        """add a line to the GUI containing a combobox
+        """
         self.row += 1
         self.grid.addWidget(qtw.QLabel(labeltext), self.row, 0)
         cmb = qtw.QComboBox(self)
@@ -603,6 +615,8 @@ class MainFrame(qtw.QWidget, LBase):
         return cmb
 
     def add_checkbox_row(self, text, toggle=False, spinner=None, button=None):
+        """add a line to the GUI containing a checkbox
+        """
         self.row += 1
         if spinner or button:
             box = qtw.QHBoxLayout()
@@ -648,6 +662,8 @@ class MainFrame(qtw.QWidget, LBase):
             self.close()
 
     def determine_common(self):
+        """get part of path all files have in common
+        """
         if self.mode == Mode.single.value:
             test = self.fnames[0]
         elif self.mode == Mode.multi.value:
@@ -658,7 +674,7 @@ class MainFrame(qtw.QWidget, LBase):
                 ## while test and not os.path.exists(test):
                     ## test = test[:-1]
             if os.path.isfile(test):
-                test = os.dirname(test) + os.sep
+                test = os.path.dirname(test) + os.sep
         else:
             test = self.p["pad"] + os.sep
         return test
@@ -746,6 +762,8 @@ class MainFrame(qtw.QWidget, LBase):
 
     @waiting_cursor
     def execute_action(self):
+        """change cursor, do the linting and change the cursor back
+        """
         self.do_checks.do_action()
 
     def zoekdir(self):
@@ -756,6 +774,8 @@ class MainFrame(qtw.QWidget, LBase):
             self.vraag_dir.setEditText(dlg)
 
     def configure_quiet(self):
+        """configure quiet mode
+        """
         dlg = QuietOptions(self).exec_()
         if dlg != qtw.QDialog.Accepted:
             return
@@ -771,11 +791,15 @@ class MainFrame(qtw.QWidget, LBase):
             self.quiet_options['pattern'] = test
 
     def configure_filter(self):
+        """configure filtering
+        """
         dlg = FilterOptions(self).exec_()
         if dlg == qtw.QDialog.Accepted:
             self.update_blacklistfile()
 
     def get_output_filename(self, name, fromname=''):
+        """build filename for file to send output to
+        """
         if fromname and '<ignore>' in name:
             fromname = fromname.replace(self.quiet_options['ignore'], '')
         name = name.replace('<filename>', fromname)
