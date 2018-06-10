@@ -10,7 +10,7 @@ import PyQt5.QtWidgets as qtw
 
 from .linter_base import iconame, LBase, log, Mode
 from .linter_exec import Linter
-from .linter_config import checktypes
+from .linter_config import cmddict, checktypes
 common_path_txt = 'De bestanden staan allemaal in of onder de directory "{}"'
 TXTW = 200
 SEP = ', '
@@ -462,7 +462,6 @@ class MainFrame(qtw.QWidget, LBase):
         box = qtw.QHBoxLayout()
         box.addWidget(qtw.QLabel('Type of check:', self))
         self.check_options = qtw.QButtonGroup()
-        ## self.check_options.setExclusive(False)
         for checktype in checktypes:
             self.check_options.addButton(qtw.QRadioButton(checktype, self))
         for btn in self.check_options.buttons():
@@ -483,32 +482,20 @@ class MainFrame(qtw.QWidget, LBase):
         self.grid.addLayout(box, self.row, 0, 2, 1)
         self.linters = qtw.QButtonGroup(self)
 
-        box = qtw.QHBoxLayout()
-        self.use_flake8 = qtw.QRadioButton('Flake8', self)
-        self.linters.addButton(self.use_flake8)
-        box.addWidget(self.use_flake8)
-        if self.linter_from_input == 'flake8':
-            self.use_flake8.setChecked(True)
-        self.conf_flake8 = qtw.QPushButton('Configure', self)
-        self.conf_flake8.clicked.connect(self.configure_flake8)
-        box.addWidget(self.conf_flake8)
-        box.addStretch()
-        self.grid.addLayout(box, self.row, 1)
+        for linter in cmddict.keys():
+            box = qtw.QHBoxLayout()
+            btn = qtw.QRadioButton(linter.title(), self)
+            self.linters.addButton(btn)
+            box.addWidget(btn)
+            if self.linter_from_input == linter:
+                btn.setChecked(True)
+            btn = qtw.QPushButton('Configure', self)
+            btn.clicked.connect(self.configure_linter)
+            box.addWidget(btn)
+            box.addStretch()
+            self.grid.addLayout(box, self.row, 1)
+            self.row += 1
 
-        self.row += 1
-        box = qtw.QHBoxLayout()
-        self.use_pylint = qtw.QRadioButton('Pylint', self)
-        self.linters.addButton(self.use_pylint)
-        box.addWidget(self.use_pylint)
-        if self.linter_from_input == 'pylint':
-            self.use_pylint.setChecked(True)
-        self.conf_pylint = qtw.QPushButton('Configure', self)
-        self.conf_pylint.clicked.connect(self.configure_pylint)
-        box.addWidget(self.conf_pylint)
-        box.addStretch()
-        self.grid.addLayout(box, self.row, 1)
-
-        self.row += 1
         if self.mode == Mode.single.value:
             self.grid.addWidget(qtw.QLabel('In file/directory:', self), self.row, 0)
             box = qtw.QHBoxLayout()
@@ -588,7 +575,7 @@ class MainFrame(qtw.QWidget, LBase):
         vbox.addLayout(self.grid)
 
         self.setLayout(vbox)
-        self.use_pylint.setFocus()
+        self.linters.buttons()[0].setFocus()
 
         self.show()
         if self.skip_screen:
@@ -823,28 +810,14 @@ class MainFrame(qtw.QWidget, LBase):
                             datetime.datetime.today().strftime('%Y%m%d%H%M%S'))
         return name
 
-    def configure_pylint(self):
+    def configure_linter(self):
         """open pylint configuration in editor
         """
+        linter = self.get_radiogroup_checked(self.linters)
+        if not linter:
+            return
         test = self.get_radiogroup_checked(self.check_options)
         if not test or test == 'default':
             return
-
-        ## if test == 'default':
-        ## fnaam = os.path.join(os.path.expanduser('~'), '.pylintrc')
-        ## else:
-        fnaam = checktypes[test]['pylint'][-1]
-        subprocess.run(['xdg-open', fnaam])
-
-    def configure_flake8(self):
-        """open flake8 configuration in editor
-        """
-        test = self.get_radiogroup_checked(self.check_options)
-        if not test or test == 'default':
-            return
-
-        ## if test == 'default':
-        ## fnaam = os.path.join(os.path.expanduser('~'), '.config', 'flake8')
-        ## else:
-        fnaam = checktypes[test]['flake8'][0].split('=')[-1]
+        fnaam = checktypes[test][linter.lower()][-1].split('=')[-1]
         subprocess.run(['xdg-open', fnaam])
