@@ -10,21 +10,10 @@ import PyQt5.QtWidgets as qtw
 
 from .linter_base import iconame, LBase, log, Mode
 from .linter_exec import Linter
+from .linter_config import checktypes
 common_path_txt = 'De bestanden staan allemaal in of onder de directory "{}"'
 TXTW = 200
 SEP = ', '
-
-
-def configure_pylint():
-    """open pylint configuration in editor
-    """
-    subprocess.run(['xdg-open',
-                    os.path.join(os.path.expanduser('~'), '.pylintrc')])
-
-
-def configure_flake8():
-    subprocess.run(['xdg-open',
-                    os.path.join(os.path.expanduser('~'), '.config', 'flake8')])
 
 
 def waiting_cursor(func):
@@ -470,6 +459,23 @@ class MainFrame(qtw.QWidget, LBase):
         self.row = -1
 
         self.row += 1
+        box = qtw.QHBoxLayout()
+        box.addWidget(qtw.QLabel('Type of check:', self))
+        self.check_options = qtw.QButtonGroup()
+        ## self.check_options.setExclusive(False)
+        for checktype in checktypes:
+            self.check_options.addButton(qtw.QRadioButton(checktype, self))
+        for btn in self.check_options.buttons():
+            box.addWidget(btn)
+            if btn.text() == self.checking_type:
+                btn.setChecked(True)
+            if btn.text() == 'default':
+                dflt_id = self.check_options.id(btn)
+        if not self.check_options.checkedButton():
+            self.check_options.button(dflt_id).setChecked(True)
+        self.grid.addLayout(box, self.row, 0, 1, 2)
+
+        self.row += 1
         box = qtw.QVBoxLayout()
         box.addSpacing(5)
         box.addWidget(qtw.QLabel('Check using:', self))
@@ -484,7 +490,7 @@ class MainFrame(qtw.QWidget, LBase):
         if self.linter_from_input == 'flake8':
             self.use_flake8.setChecked(True)
         self.conf_flake8 = qtw.QPushButton('Configure', self)
-        self.conf_flake8.clicked.connect(configure_flake8)
+        self.conf_flake8.clicked.connect(self.configure_flake8)
         box.addWidget(self.conf_flake8)
         box.addStretch()
         self.grid.addLayout(box, self.row, 1)
@@ -497,7 +503,7 @@ class MainFrame(qtw.QWidget, LBase):
         if self.linter_from_input == 'pylint':
             self.use_pylint.setChecked(True)
         self.conf_pylint = qtw.QPushButton('Configure', self)
-        self.conf_pylint.clicked.connect(configure_pylint)
+        self.conf_pylint.clicked.connect(self.configure_pylint)
         box.addWidget(self.conf_pylint)
         box.addStretch()
         self.grid.addLayout(box, self.row, 1)
@@ -661,6 +667,14 @@ class MainFrame(qtw.QWidget, LBase):
         if event.key() == core.Qt.Key_Escape:
             self.close()
 
+    def get_radiogroup_checked(self, group):
+        """return the text of the checked radiobutton
+        """
+        test = group.checkedButton() or ''
+        if test:
+            test = test.text()
+        return test
+
     def determine_common(self):
         """get part of path all files have in common
         """
@@ -681,10 +695,11 @@ class MainFrame(qtw.QWidget, LBase):
 
     def doe(self):
         """Zoekactie uitvoeren en resultaatscherm tonen"""
-        test = self.linters.checkedButton() or ''
-        if test:
-            test = test.text()
-        mld = self.check_linter(test)
+        test = self.get_radiogroup_checked(self.check_options)
+        mld = self.check_type(test)
+        if not mld:
+            test = self.get_radiogroup_checked(self.linters)
+            mld = self.check_linter(test)
         if not mld and self.mode == Mode.standard.value:
             mld = self.checkpath(self.vraag_dir.currentText())
         if not mld:
@@ -807,3 +822,29 @@ class MainFrame(qtw.QWidget, LBase):
         name = name.replace('<date>',
                             datetime.datetime.today().strftime('%Y%m%d%H%M%S'))
         return name
+
+    def configure_pylint(self):
+        """open pylint configuration in editor
+        """
+        test = self.get_radiogroup_checked(self.check_options)
+        if not test or test == 'default':
+            return
+
+        ## if test == 'default':
+        ## fnaam = os.path.join(os.path.expanduser('~'), '.pylintrc')
+        ## else:
+        fnaam = checktypes[test]['pylint'][-1]
+        subprocess.run(['xdg-open', fnaam])
+
+    def configure_flake8(self):
+        """open flake8 configuration in editor
+        """
+        test = self.get_radiogroup_checked(self.check_options)
+        if not test or test == 'default':
+            return
+
+        ## if test == 'default':
+        ## fnaam = os.path.join(os.path.expanduser('~'), '.config', 'flake8')
+        ## else:
+        fnaam = checktypes[test]['flake8'][0].split('=')[-1]
+        subprocess.run(['xdg-open', fnaam])

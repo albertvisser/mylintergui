@@ -9,7 +9,6 @@ import logging
 import enum
 import subprocess
 import json
-import importlib
 origpath = sys.path
 sys.path.insert(0, str(pathlib.Path.home() / 'bin'))
 ## importlib.import_module('settings')
@@ -114,6 +113,7 @@ class LBase(object):
         self.linter_from_input = args.c
         self.dest_from_input = args.o
         self.skip_screen = args.s
+        self.checking_type = args.m
 
         for x in Mode:
             test = args.__getattribute__(x.value)
@@ -234,6 +234,16 @@ class LBase(object):
         """
         with blacklist.open('w') as _blf:
             json.dump(self.blacklist, _blf, indent=4)
+
+    def check_type(self, item):
+        """check linter options
+        """
+        if not item:
+            mld = 'Please select a check type'
+        else:
+            mld = ""
+            self.p["mode"] = item
+        return mld
 
     def check_linter(self, item):
         """check linter options

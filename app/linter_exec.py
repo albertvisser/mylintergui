@@ -3,12 +3,8 @@
 de uitvoering wordt gestuurd door in een dictionary verzamelde parameters
 """
 import os
-import collections
 import subprocess
-
-cmddict = collections.OrderedDict([
-    ('pylint', {'command': ('pylint3', '{}')}),
-    ('flake8', {'command': ('python3', '-m', 'flake8', '{}')}), ])
+from .linter_config import cmddict, checktypes
 
 
 class Linter(object):
@@ -23,6 +19,7 @@ class Linter(object):
             "follow_symlinks": False,
             "maxdepth": 5,
             'fromrepo': False,
+            'mode': '',
             'blacklist': {}}
         for x, y in parms.items():
             if x in self.p:
@@ -143,6 +140,7 @@ class Linter(object):
         for name in self.filenames:
             props = cmddict[self.p['linter'].lower()]
             command = [x.replace('{}', '{}'.format(name)) for x in props['command']]
+            command[2:3] += checktypes[self.p['mode']][self.p['linter'].lower()]
             go = subprocess.run(command, stdout=subprocess.PIPE)
             if not go.stdout:
                 self.results[name] = 'No results for {}'.format(name)
