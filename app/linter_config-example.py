@@ -2,9 +2,8 @@
 """
 import collections
 
-cmddict = collections.OrderedDict([
-    ('pylint', {'command': ('pylint3', '{}')}),
-    ('flake8', {'command': ('python3', '-m', 'flake8', '{}')}), ])
+cmddict = collections.OrderedDict([('flake8', {'command': ('python3', '-m', 'flake8', '{}')}),
+                                   ('pylint', {'command': ('pylint3', '{}')}), ])
 
 checktypes = {'permissive': {'pylint': ['--rcfile', '/home/<user>/.pylintrc-lean'],
                              'flake8': ['--config=/home/<user>/.config/flake8-lean']},
