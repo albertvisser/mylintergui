@@ -462,13 +462,15 @@ class MainFrame(qtw.QWidget, LBase):
         box = qtw.QHBoxLayout()
         box.addWidget(qtw.QLabel('Type of check:', self))
         self.check_options = qtw.QButtonGroup()
+        print(self.checking_type)
         for checktype in checktypes:
-            self.check_options.addButton(qtw.QRadioButton(checktype, self))
+            self.check_options.addButton(qtw.QRadioButton('&' + checktype.title(), self))
         for btn in self.check_options.buttons():
             box.addWidget(btn)
-            if btn.text() == self.checking_type:
+            print(btn.text(), '&' + str(self.checking_type).title())
+            if btn.text() == '&' + str(self.checking_type).title():
                 btn.setChecked(True)
-            if btn.text() == 'default':
+            if btn.text() == '&Default':
                 dflt_id = self.check_options.id(btn)
         if not self.check_options.checkedButton():
             self.check_options.button(dflt_id).setChecked(True)
@@ -484,7 +486,8 @@ class MainFrame(qtw.QWidget, LBase):
 
         for linter in cmddict.keys():
             box = qtw.QHBoxLayout()
-            btn = qtw.QRadioButton(linter.title(), self)
+            linter_text = 'py&lint' if linter == 'pylint' else '&' + linter
+            btn = qtw.QRadioButton(linter_text.title(), self)
             self.linters.addButton(btn)
             box.addWidget(btn)
             if self.linter_from_input == linter:
@@ -683,10 +686,10 @@ class MainFrame(qtw.QWidget, LBase):
     def doe(self):
         """Zoekactie uitvoeren en resultaatscherm tonen"""
         test = self.get_radiogroup_checked(self.check_options)
-        mld = self.check_type(test)
+        mld = self.check_type(test.replace('&', '').lower())
         if not mld:
             test = self.get_radiogroup_checked(self.linters)
-            mld = self.check_linter(test)
+            mld = self.check_linter(test.replace('&', '').lower())
         if not mld and self.mode == Mode.standard.value:
             mld = self.checkpath(self.vraag_dir.currentText())
         if not mld:
