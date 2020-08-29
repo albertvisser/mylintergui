@@ -182,7 +182,8 @@ class QuietOptions(qtw.QDialog):
         self.parent.newquietoptions = {
             'single_file': self.single.isChecked(),
             'fname': self.fname.text(),
-            'pattern': self.pattern.text()}
+            'pattern': self.pattern.text(),
+            'ignore': self.ignore.text()}
         super().accept()
 
 
@@ -325,25 +326,19 @@ class Results(qtw.QDialog):
         vbox.addLayout(hbox)
 
         hbox = qtw.QHBoxLayout()
-        hbox.addStretch(1)
+        hbox.addStretch()
         btn = qtw.QPushButton("&Klaar", self)
         btn.clicked.connect(self.klaar)
         hbox.addWidget(btn)
         btn = qtw.QPushButton("&Repeat Action", self)
         btn.clicked.connect(self.refresh)
         hbox.addWidget(btn)
-        btn = qtw.QPushButton("Copy to &File", self)
+        btn = qtw.QPushButton("Copy to &File(s)", self)
         btn.clicked.connect(self.kopie)
         hbox.addWidget(btn)
         btn = qtw.QPushButton("Copy to &Clipboard", self)
         btn.clicked.connect(self.to_clipboard)
         hbox.addWidget(btn)
-        self.cb_dir = qtw.QCheckBox("toon directorypad in uitvoer", self)
-        if self.parent.mode == Mode.single.value:
-            self.cb_dir.setEnabled(False)
-        hbox.addWidget(self.cb_dir)
-        self.cb_csv = qtw.QCheckBox("comma-delimited", self)
-        hbox.addWidget(self.cb_csv)
         hbox.addStretch()
         vbox.addLayout(hbox)
 
@@ -362,32 +357,6 @@ class Results(qtw.QDialog):
         """finish dialog
         """
         qtw.QDialog.done(self, 0)
-
-    def get_results(self):
-        """apply switch to show complete path to results
-        """
-        toonpad = True if self.cb_dir.isChecked() else False
-        comma = True if self.cb_csv.isChecked() else False
-        text = ["{}".format(self.results[0])]
-        if self.parent.mode == Mode.multi.value and not toonpad:
-            text.append(common_path_txt.format(self.common) + '\n')
-        if comma:
-            import io
-            import csv
-            textbuf = io.StringIO()
-            writer = csv.writer(textbuf, dialect='unix')
-        for item in self.results[1:]:
-            result = list(item)
-            if toonpad and self.parent.mode == Mode.multi.value:
-                result[0] = self.common + result[0]
-            if comma:
-                writer.writerow(result)
-            else:
-                text.append(" ".join(result))
-        if comma:
-            text = textbuf.getvalue().split("\n")
-            textbuf.close()
-        return text
 
     def refresh(self):
         """callback for repeat action
@@ -408,16 +377,29 @@ class Results(qtw.QDialog):
         if not dlg:
             return
         if self.parent.newquietoptions['single_file']:
-            fname = self.parent.get_output_filename(
-                self.parent.newquietoptions['fname'])
+            fname = self.parent.get_output_filename(self.parent.newquietoptions['fname'])
             with open(fname, "w") as f_out:
-                for line in self.get_results():
-                    f_out.write(line + "\n")
-            return
-        # TODO:
-        # - break up results into parts pertaining to one file
-        # - build dest filename according to self.parent.newquietoptions['pattern']
-        # - write output to the files (see the above code)
+                first_file = True
+                for name, data in self.parent.do_checks.results.items():
+                    if not first_file:
+                        print('', file=f_out)
+                        print('', file=f_out)
+                    first_file = False
+                    print('results for {}'.format(name), file=f_out)
+                    print('', file=f_out)
+                    print(data, file=f_out)
+            msgstart = 'O'
+        else:
+            for name, data in self.parent.do_checks.results.items():
+                fname = self.parent.get_output_filename(self.parent.newquietoptions['pattern'],
+                                                        name)
+                with open(fname, 'w') as f_out:
+                    print('results for {}'.format(name), file=f_out)
+                    print('', file=f_out)
+                    print(data, file=f_out)
+            msgstart = 'Last o'
+        qtw.QMessageBox.information(self, self.parent.title, '{}utput saved as {}'.format(msgstart,
+                                                                                          fname))
 
     def help(self):
         """suggest workflow
@@ -431,7 +413,15 @@ class Results(qtw.QDialog):
         """callback for button 'Copy to clipboard'
         """
         clp = qtw.QApplication.clipboard()
-        clp.setText('\n'.join(self.get_results()))
+        text = []
+        first_file = True
+        for name, data in self.parent.do_checks.results.items():
+            if not first_file:
+                text.extend(['', ''])
+            first_file = False
+            text.extend(['results for {}'.format(name), '', data])
+        clp.setText('\n'.join(text))
+        qtw.QMessageBox.information(self, self.parent.title, 'Output copied to clipboard')
 
     def goto_result(self):
         """open the file containing the checked lines
@@ -462,12 +452,10 @@ class MainFrame(qtw.QWidget, LBase):
         box = qtw.QHBoxLayout()
         box.addWidget(qtw.QLabel('Type of check:', self))
         self.check_options = qtw.QButtonGroup()
-        print(self.checking_type)
         for checktype in checktypes:
             self.check_options.addButton(qtw.QRadioButton('&' + checktype.title(), self))
         for btn in self.check_options.buttons():
             box.addWidget(btn)
-            print(btn.text(), '&' + str(self.checking_type).title())
             if btn.text() == '&' + str(self.checking_type).title():
                 btn.setChecked(True)
             if btn.text() == '&Default':
@@ -808,9 +796,12 @@ class MainFrame(qtw.QWidget, LBase):
         if fromname and '<ignore>' in name:
             fromname = fromname.replace(self.quiet_options['ignore'], '')
         name = name.replace('<filename>', fromname)
+        name = name.replace('<ignore>', '')
+        while '//' in name:
+            name = name.replace('//', '/')
         name = name.replace('<linter>', self.p['linter'])
-        name = name.replace('<date>',
-                            datetime.datetime.today().strftime('%Y%m%d%H%M%S'))
+        name = name.replace('<date>', datetime.datetime.today().strftime('%Y%m%d%H%M%S'))
+        name = os.path.expanduser(name)
         return name
 
     def configure_linter(self):

@@ -93,10 +93,9 @@ class LBase(object):
         self.quiet_keys = ('dest', 'pattern', 'fname', 'ignore')
         self.quiet_options = {
             'dest': 'multi',
-            'pattern': '/'.join(('~', '.linters', '<linter>', '<ignore>',
-                                 '<filename>-<date>')),
+            'pattern': os.path.join('~', '.linters', '<linter>', '<ignore>', '<filename>-<date>'),
             'fname': '<linter>_results-<date>',
-            'ignore': '~/projects'}
+            'ignore': os.path.expanduser('~/projects')}
         self._words = ('woord', 'woord', 'spec', 'pad', )
         self._optkeys = ("subdirs", "fromrepo")
         for key in self._optkeys:
@@ -191,6 +190,8 @@ class LBase(object):
                 self.p[key] = opts.get(key, False)
             for key in self.quiet_keys:
                 if key in opts:
+                    if key == 'ignore' and opts[key].startswith('~'):
+                        continue
                     self.quiet_options[key] = opts[key]
 
     def schrijfini(self, path=None):
