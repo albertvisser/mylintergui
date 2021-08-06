@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """imports the gui from a toolkit-specific module
 so that the starters need not know about which one is used
 """
