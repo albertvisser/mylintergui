@@ -4,7 +4,11 @@ import argparse
 from lint_core import Main
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('-l', '--linter', choices=['pylint', 'flake8'], required=True)
-parser.add_argument('-r', '--recursive', action='store_true')
-parser.add_argument('-f', '--file')
+parser.add_argument('-l', '--linter', choices=['pylint', 'flake8'], required=True,
+                    help='one of these choices is required')
+parser.add_argument('-r', '--recursive', action='store_true', 
+                    help='if true, also scan subdirectories if file argument is not specified')
+parser.add_argument('-f', '--file', help='file to lint, otherwise scan current directory')
+parser.add_argument('-o', '--out', default='', 
+                    help='output to file (only works with one file to lint)')
 Main(parser.parse_args())

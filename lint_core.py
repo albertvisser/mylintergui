@@ -15,8 +15,8 @@ origpath = sys.path
 sys.path.insert(0, str(pathlib.Path.home() / 'bin'))
 import settings
 sys.path = origpath
-do_not_lint = settings.fcgi_repos + settings.private_repos + settings.non_deploy_repos
-all_repos = settings.all_repos + settings.git_repos
+# do_not_lint = settings.fcgi_repos + settings.private_repos + settings.non_deploy_repos
+# all_repos = settings.all_repos + settings.git_repos
 
 
 def lint_all(args):
@@ -30,11 +30,11 @@ def lint_all(args):
         lint_them_all = True
         names = settings.all_repos
     for name in names:
-        if not lint_them_all and name not in all_repos:
+        if not lint_them_all and name not in settings.all_repos:
             if [name] == names:
                 print("Unknown project name", name)
             continue
-        if name in do_not_lint:
+        if name in settings.DO_NOT_LINT:  # do_not_lint:
             if [name] == names:
                 print(name, "is marked as do-not-lint")
             continue
@@ -55,7 +55,7 @@ class Main():
         self.determine_files(repo_only)
         if args.file:
             item = pathlib.Path(args.file).resolve()
-            self.lint(item)
+            self.lint(item, args.out)
         else:
             self.scan(pathlib.Path.cwd(), args.recursive)
         print('ready.')
@@ -80,20 +80,24 @@ class Main():
         for name in str(result, encoding='utf-8').split('\n'):
             self.files.append(repo_loc / name)
 
-    def lint(self, item):
+    def lint(self, item, out='auto'):
         """actually call the linter
         """
-        print('checking', item)
         command = [x for x in CMD[self.linter]]
         for ix, word in enumerate(command):
             if word == '<src>':
                 command[ix] = str(item)
-        dts = datetime.datetime.today().strftime('%Y%m%d%H%M%S')
-        out = ROOT / self.linter / '-'.join(
-            (str(item.relative_to(pathlib.Path.home() / 'projects')), dts))
-        print('writing to', out)
-        if not out.parent.exists():
-            out.parent.mkdir(parents=True)
+        if not out:
+            result = subprocess.run(command)
+            return
+        elif out == 'auto':
+            print('checking', item)
+            dts = datetime.datetime.today().strftime('%Y%m%d%H%M%S')
+            out = ROOT / self.linter / '-'.join(
+                (str(item.relative_to(pathlib.Path.home() / 'projects')), dts))
+            print('writing to', out)
+            if not out.parent.exists():
+                out.parent.mkdir(parents=True)
         with out.open('w') as _out:
             subprocess.run(command, stdout=_out)
 
