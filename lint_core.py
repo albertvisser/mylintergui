@@ -9,8 +9,8 @@ from types import SimpleNamespace
 
 ROOT = pathlib.Path.home() / '.linters'
 CMD = {
-    'pylint': ('pylint3', '<src>'),
-    'flake8': ('python3', '-m', 'flake8', '<src>')}
+    'pylint': ('pylint', '<src>'),
+    'flake8': ('python', '-m', 'flake8', '<src>')}
 origpath = sys.path
 sys.path.insert(0, str(pathlib.Path.home() / 'bin'))
 import settings
@@ -38,7 +38,7 @@ def lint_all(args):
             if [name] == names:
                 print(name, "is marked as do-not-lint")
             continue
-        os.chdir(os.path.join(settings.projects_base, name))
+        os.chdir(os.path.join(settings.PROJECTS_BASE, name))
         args = SimpleNamespace(linter='', file=None, recursive=True)
         args.linter = 'pylint'
         Main(args)
@@ -83,14 +83,14 @@ class Main():
     def lint(self, item, out='auto'):
         """actually call the linter
         """
-        command = [x for x in CMD[self.linter]]
+        command = list(CMD[self.linter])
         for ix, word in enumerate(command):
             if word == '<src>':
                 command[ix] = str(item)
         if not out:
             result = subprocess.run(command)
             return
-        elif out == 'auto':
+        if out == 'auto':
             print('checking', item)
             dts = datetime.datetime.today().strftime('%Y%m%d%H%M%S')
             out = ROOT / self.linter / '-'.join(
@@ -106,7 +106,9 @@ class Main():
         """
         for item in here.iterdir():
             if item.is_file() and item.suffix in ('.py', 'pyw', ''):
-                if self.files and item not in self.files:
+                if item.name.startswith('.'):              # no hidden files
+                    continue
+                if self.files and item not in self.files:  # ignore unselected
                     continue
                 self.lint(item)
             elif item.is_dir() and recursive:
