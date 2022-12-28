@@ -806,12 +806,15 @@ class MainFrame(qtw.QWidget, LBase):
 
     def configure_linter(self):
         """open pylint configuration in editor
+
+        rekening houden met verschillende opbouw van de optie string:
+        voor pylint is het ['name', 'value'], voor flake8 is het ['name=value']
         """
-        linter = self.get_radiogroup_checked(self.linters)
+        linter = self.get_radiogroup_checked(self.linters).replace('&', '').lower()
         if not linter:
             return
-        test = self.get_radiogroup_checked(self.check_options)
+        test = self.get_radiogroup_checked(self.check_options)[1:].lower()
         if not test or test == 'default':
             return
-        fnaam = checktypes[test][linter.lower()][-1].split('=')[-1]
+        fnaam = checktypes[test][linter][-1].split('=')[-1]
         subprocess.run(['xdg-open', fnaam])
