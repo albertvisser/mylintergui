@@ -68,7 +68,7 @@ class Mode(enum.Enum):
     multi = 'l'
 
 
-class LBase(object):
+class LBase:
     """
     mixin base class voor de Application classes
 
@@ -219,6 +219,11 @@ class LBase(object):
             edfile.write_text(test)
         self.editor_option = [x.split(' = ')[1].strip("'")
                               for x in test.strip().split('\n')]
+        if self.editor_option[0].startswith('['):
+            command_list = [x[1:-1] for x in self.editor_option[0][1:-1].split(', ')]
+            self.editor_option[0] = command_list
+        else:
+            self.editor_option[0] = [self.editor_option[0]]
 
     def build_blacklist(self):
         """(re)write blacklist
@@ -259,7 +264,7 @@ class LBase(object):
     def checkpath(self, item):
         "controleer zoekpad"
         if not item:
-            mld = ("Please enter or select a directory")
+            mld = "Please enter or select a directory"
         else:
             try:
                 test = pathlib.Path(item).expanduser().resolve()
@@ -273,7 +278,7 @@ class LBase(object):
                 except ValueError:
                     pass
                 self._mru_items["dirs"].insert(0, test)
-                self.s += "\nin {0}".format(test)
+                self.s += f"\nin {test}"
                 self.p["pad"] = test
                 self.p['filelist'] = ''
         return mld

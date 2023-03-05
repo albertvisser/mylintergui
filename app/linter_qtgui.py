@@ -89,11 +89,11 @@ class FilterOptions(qtw.QDialog):
     def accept(self):
         """transfer chosen options to parent"""
         self.parent.blacklist = {
-            'exclude_dirs': [x for x in self.skipdirs.text().split(SEP)],
-            'exclude_exts': [x for x in self.skipexts.text().split(SEP)],
-            'include_exts': [x for x in self.do_exts.text().split(SEP)],
-            'exclude_files': [x for x in self.skipfiles.text().split(SEP)],
-            'include_shebang': [x for x in self.do_bangs.text().split(SEP)], }
+            'exclude_dirs': list(self.skipdirs.text().split(SEP)),
+            'exclude_exts': list(self.skipexts.text().split(SEP)),
+            'include_exts': list(self.do_exts.text().split(SEP)),
+            'exclude_files': list(self.skipfiles.text().split(SEP)),
+            'include_shebang': list(self.do_bangs.text().split(SEP)), }
         super().accept()
 
 
@@ -175,7 +175,6 @@ class QuietOptions(qtw.QDialog):
     def browse(self):
         """callback for selct
         """
-        pass
 
     def accept(self):
         """transfer chosen options to parent"""
@@ -288,8 +287,7 @@ class Results(qtw.QDialog):
         vbox = qtw.QVBoxLayout()
 
         hbox = qtw.QHBoxLayout()
-        label_txt = "{} ({} items)".format(self.parent.do_checks.rpt[0],
-                                           len(self.parent.do_checks.results))
+        label_txt = f"{self.parent.do_checks.rpt[0]} ({len(self.parent.do_checks.results)} items)"
         if self.parent.mode == Mode.multi.value:
             label_txt += '\n' + common_path_txt.format(self.common.rstrip(os.sep))
         self.txt = qtw.QLabel(label_txt, self)
@@ -385,7 +383,7 @@ class Results(qtw.QDialog):
                         print('', file=f_out)
                         print('', file=f_out)
                     first_file = False
-                    print('results for {}'.format(name), file=f_out)
+                    print(f'results for {name}', file=f_out)
                     print('', file=f_out)
                     print(data, file=f_out)
             msgstart = 'O'
@@ -394,12 +392,11 @@ class Results(qtw.QDialog):
                 fname = self.parent.get_output_filename(self.parent.newquietoptions['pattern'],
                                                         name)
                 with open(fname, 'w') as f_out:
-                    print('results for {}'.format(name), file=f_out)
+                    print('results for {name}', file=f_out)
                     print('', file=f_out)
                     print(data, file=f_out)
             msgstart = 'Last o'
-        qtw.QMessageBox.information(self, self.parent.title, '{}utput saved as {}'.format(msgstart,
-                                                                                          fname))
+        qtw.QMessageBox.information(self, self.parent.title, '{msgstart}utput saved as {fname}')
 
     def help(self):
         """suggest workflow
@@ -419,7 +416,7 @@ class Results(qtw.QDialog):
             if not first_file:
                 text.extend(['', ''])
             first_file = False
-            text.extend(['results for {}'.format(name), '', data])
+            text.extend(['results for {name}', '', data])
         clp.setText('\n'.join(text))
         qtw.QMessageBox.information(self, self.parent.title, 'Output copied to clipboard')
 
@@ -428,7 +425,7 @@ class Results(qtw.QDialog):
         """
         fname = self.filelist.currentText()
         prog, fileopt, _ = self.parent.editor_option
-        subprocess.run([prog, fileopt.format(fname)])  # , lineopt.format(line)])
+        subprocess.run(prog + [fileopt.format(fname)])  # , lineopt.format(line)])
 
 
 class MainFrame(qtw.QWidget, LBase):
@@ -632,7 +629,7 @@ class MainFrame(qtw.QWidget, LBase):
     def check_loc(self, txt):
         """update location to get settings from
         """
-        log('in check_loc: txt={}'.format(txt))
+        log('in check_loc: txt={txt}')
         if os.path.exists(txt) and not txt.endswith(os.path.sep):
             self.readini(txt)
             ## self.vraag_dir.clear()
