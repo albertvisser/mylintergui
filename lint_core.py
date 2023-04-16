@@ -91,15 +91,25 @@ class Main():
             result = subprocess.run(command)
             return
         if out == 'auto':
-            print('checking', item)
             dts = datetime.datetime.today().strftime('%Y%m%d%H%M%S')
-            out = ROOT / self.linter / '-'.join(
-                (str(item.relative_to(pathlib.Path.home() / 'projects')), dts))
-            print('writing to', out)
+            # LBYL
+            if item.is_relative_to(pathlib.Path.home() / 'projects'):
+                out = ROOT / self.linter / '-'.join(
+                    (str(item.relative_to(pathlib.Path.home() / 'projects')), dts))
+            else:
+                out = ROOT / self.linter / '-'.join(
+                    (str(item.relative_to(pathlib.Path.home())), dts))
+            # EAFP - zelfde resultaat
+            # try:
+            #     out = ROOT / self.linter / '-'.join(
+            #         (str(item.relative_to(pathlib.Path.home() / 'projects')), dts))
+            # except ValueError:
+            #     out = ROOT / self.linter / '-'.join(
+            #         (str(item.relative_to(pathlib.Path.home())), dts))
             if not out.parent.exists():
                 out.parent.mkdir(parents=True)
-        with out.open('w') as _out:
-            subprocess.run(command, stdout=_out)
+        # with out.open('w') as _out:
+        #     subprocess.run(command, stdout=_out)
 
     def scan(self, here, recursive=False):
         """apply linter to files in directory
