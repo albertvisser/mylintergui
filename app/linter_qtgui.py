@@ -392,7 +392,7 @@ class Results(qtw.QDialog):
                 fname = self.parent.get_output_filename(self.parent.newquietoptions['pattern'],
                                                         name)
                 with open(fname, 'w') as f_out:
-                    print('results for {name}', file=f_out)
+                    print(f'results for {name}', file=f_out)
                     print('', file=f_out)
                     print(data, file=f_out)
             msgstart = 'Last o'
@@ -416,7 +416,7 @@ class Results(qtw.QDialog):
             if not first_file:
                 text.extend(['', ''])
             first_file = False
-            text.extend(['results for {name}', '', data])
+            text.extend([f'results for {name}', '', data])
         clp.setText('\n'.join(text))
         qtw.QMessageBox.information(self, self.parent.title, 'Output copied to clipboard')
 
