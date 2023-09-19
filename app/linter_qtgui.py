@@ -632,8 +632,8 @@ class MainFrame(qtw.QWidget, LBase):
         log('in check_loc: txt={txt}')
         if os.path.exists(txt) and not txt.endswith(os.path.sep):
             self.readini(txt)
-            ## self.vraag_dir.clear()
-            ## self.vraag_dir.addItems(self._mru_items["dirs"])
+            # self.vraag_dir.clear()
+            # self.vraag_dir.addItems(self._mru_items["dirs"])
             self.vraag_subs.setChecked(self.p["subdirs"])
             self.vraag_repo.setChecked(self.p["fromrepo"])
 
@@ -657,10 +657,10 @@ class MainFrame(qtw.QWidget, LBase):
             test = self.fnames[0]
         elif self.mode == Mode.multi.value:
             test = os.path.commonpath(self.fnames)
-            ## if test in self.fnames:
-                ## pass
-            ## else:
-                ## while test and not os.path.exists(test):
+            # if test in self.fnames:
+            #    pass
+            # else:
+            #    while test and not os.path.exists(test):
                     ## test = test[:-1]
             if os.path.isfile(test):
                 test = os.path.dirname(test) + os.sep

@@ -70,11 +70,11 @@ class Linter(object):
             pass
         self.filenames = []
         for entry in self.p['filelist']:
-            ## hlp = pathlib.Path(entry)
-            ## if hlp.name in self.p['blacklist']['exclude_files']:
+            # hlp = pathlib.Path(entry)
+            # if hlp.name in self.p['blacklist']['exclude_files']:
             if os.path.basename(entry) in self.p['blacklist']['exclude_files']:
                 continue
-            ## test = hlp.suffix.lstrip('.')
+            # test = hlp.suffix.lstrip('.')
             test = os.path.splitext(entry)[1].lstrip('.')
             if test not in self.p['blacklist']['include_exts']:
                 continue
@@ -146,6 +146,7 @@ class Linter(object):
                 self.results[name] = 'No results for {}'.format(name)
             else:
                 self.results[name] = str(go.stdout, encoding='utf-8')
+
 
 """\
 checken van een package met output naar één file

@@ -11,7 +11,7 @@ import subprocess
 import json
 origpath = sys.path
 sys.path.insert(0, str(pathlib.Path.home() / 'bin'))
-## importlib.import_module('settings')
+# importlib.import_module('settings')
 import settings
 sys.path = origpath
 DO_NOT_LINT = settings.DO_NOT_LINT
