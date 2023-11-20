@@ -113,6 +113,9 @@ class LBase:
         self.dest_from_input = args.o
         self.skip_screen = args.s
         self.checking_type = args.m
+        if args.r:
+            self.repo_only = True
+            args.d = settings.get_project_dir(args.r)
 
         for x in Mode:
             test = args.__getattribute__(x.value)

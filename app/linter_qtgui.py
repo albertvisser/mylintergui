@@ -519,6 +519,7 @@ class MainFrame(qtw.QWidget, LBase):
                 button=self.conf_filter)
         if self.mode == Mode.standard.value:
             self.row += 1
+            self.p['fromrepo'] = self.repo_only
             self.vraag_repo = self.add_checkbox_row(
                 'Check repository files only (also does subdirectories)',
                 self.p['fromrepo'])

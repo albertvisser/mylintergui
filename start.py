@@ -22,6 +22,8 @@ parser.add_argument('-c', '--linter', dest='c', metavar='NAME',
                     help='specify checker/linter to use (%(choices)s)')
 parser.add_argument('-o', '--output-file', dest='o', metavar='NAME',
                     help='specify (single) file to send output to')
+parser.add_argument('-r', '--repo-files-only', dest='r', metavar='NAME',
+                    help='check only tracked files for specified repository')
 parser.add_argument('-s', '--skip-screen', dest='s', action='store_true',
                     help='skip initial screen and use default options')
 MainFrame(args=parser.parse_args())
