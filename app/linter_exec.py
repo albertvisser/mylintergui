@@ -117,21 +117,21 @@ class Linter(object):
                     continue
                 if ext and ext[1:] in self.p['blacklist']['exclude_exts']:
                     continue
-                if self.p['blacklist']['include_shebang']:
+                if not ext and self.p['blacklist']['include_shebang']:
                     lines = []
                     with open(entry) as _in:
                         lines.append(_in.readline())
                         lines.append(_in.readline())
+                    skip = True
                     if any([x[:2] == '#!' for x in lines]):
-                        skip = True
                         for line in lines:
                             if line.startswith('#!'):
                                 for shb in self.p['blacklist']['include_shebang']:
                                     if shb in line:
                                         skip = False
                                         break
-                        if skip:
-                            continue
+                    if skip:
+                        continue
                 self.filenames.append(entry)
 
     def do_action(self):
