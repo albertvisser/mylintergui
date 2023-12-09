@@ -100,6 +100,7 @@ class LBase:
         self._optkeys = ("subdirs", "fromrepo")
         for key in self._optkeys:
             self.p[key] = False
+        self.repo_only = False
         self.fnames = []
         self.get_editor_option()
         self.build_blacklist()
