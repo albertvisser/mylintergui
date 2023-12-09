@@ -8,7 +8,7 @@ from .linter_config import cmddict, checktypes
 
 
 class Linter(object):
-    """interpreteren van de parameters en aansturen van de zoek/vervang routine
+    """interpreteren van de parameters en uitvoeren van de linter aanroep
     """
     def __init__(self, **parms):
         self.p = {
