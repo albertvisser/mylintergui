@@ -315,27 +315,39 @@ class LBase:
     def checkrepo(self, is_checked, path):
         """check setting for "only do tracked files"
         """
-        command = mld = ''
-        repo_loc = pathlib.Path(path).expanduser().resolve()
-        if is_checked:
-            test1 = repo_loc / '.hg'
-            test2 = repo_loc / '.git'
-            if repo_loc.stem in DO_NOT_LINT:
-                mld = 'De opgegeven repository is aangemerkt als do-not-lint'
-            elif test1.exists():
-                command = ['hg', 'manifest']
-                cwd = test1
-            elif test2.exists():
-                command = ['git', 'ls-files']
-                cwd = test2
-            else:
-                mld = 'De opgegeven directory is geen (hg of git) repository'
-            if command:
-                result = subprocess.run(command, cwd=str(cwd),  # moet dit niet repo_loc zijn?
-                                        stdout=subprocess.PIPE).stdout
-                self.p['filelist'] = [str(repo_loc / name) for name in
-                                      str(result, encoding='utf-8').split('\n')
-                                      if name]
-                self.p['pad'] = ''
         self.p['fromrepo'] = is_checked
+        command = mld = ''
+        if not is_checked:
+            return mld
+        repo_loc = pathlib.Path(path).expanduser().resolve()
+        test1 = repo_loc / '.hg'
+        test2 = repo_loc / '.git'
+        if repo_loc.stem in DO_NOT_LINT:
+            mld = 'De opgegeven repository is aangemerkt als do-not-lint'
+        elif test1.exists():
+            command = ['hg', 'manifest']
+            cwd = test1
+        elif test2.exists():
+            command = ['git', 'ls-files']
+            cwd = test2
+        else:
+            mld = 'De opgegeven directory is geen (hg of git) repository'
+        if command:
+            result = subprocess.run(command, cwd=str(cwd), stdout=subprocess.PIPE).stdout
+            self.p['pad'] = ''
+            # self.p['filelist'] = [str(repo_loc / name)
+            #                       for name in str(result, encoding='utf-8').split('\n')
+            #                       if name]  # is dit een zinnige toevoeging?
+            self.p['filelist'] = []
+            filelist = [repo_loc / name for name in str(result, encoding='utf-8').split('\n')
+                        if name]  # is dit een zinnige toevoeging?
+            for path in filelist:
+                if path.is_symlink():
+                    continue
+                if path.suffix in ('.py', '.pyw'):  # python source files
+                    self.p['filelist'].append(str(path))
+                elif path.suffix == '':  # check shebang
+                    filestart = path.read_text().split('\n')[0]
+                    if filestart.startswith('#!') and 'python' in filestart:
+                        self.p['filelist'].append(str(path))
         return mld
