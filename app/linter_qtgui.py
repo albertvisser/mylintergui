@@ -10,7 +10,7 @@ import PyQt5.QtWidgets as qtw
 
 from .linter_base import iconame, LBase, log, Mode
 from .linter_exec import Linter
-from .linter_config import cmddict, checktypes
+from .linter_config import cmddict, checktypes, default_option
 common_path_txt = 'De bestanden staan allemaal in of onder de directory "{}"'
 TXTW = 200
 SEP = ', '
@@ -449,13 +449,14 @@ class MainFrame(qtw.QWidget, LBase):
         box = qtw.QHBoxLayout()
         box.addWidget(qtw.QLabel('Type of check:', self))
         self.check_options = qtw.QButtonGroup()
-        for checktype in checktypes:
-            self.check_options.addButton(qtw.QRadioButton('&' + checktype.title(), self))
+        options = ['&' + checktype.title() for checktype in checktypes]
+        for text in options:
+            self.check_options.addButton(qtw.QRadioButton(text, self))
         for btn in self.check_options.buttons():
             box.addWidget(btn)
             if btn.text() == '&' + str(self.checking_type).title():
                 btn.setChecked(True)
-            if btn.text() == '&Default':
+            if btn.text() == options[default_option]:
                 dflt_id = self.check_options.id(btn)
         if not self.check_options.checkedButton():
             self.check_options.button(dflt_id).setChecked(True)
