@@ -4,6 +4,7 @@ het meeste hiervan bevind zich in een class die als mixin gebruikt wordt
 """
 import sys
 import os
+import contextlib
 import pathlib
 import logging
 import enum
@@ -151,18 +152,17 @@ class LBase:
                         for line in f_in:
                             line = line.strip()
                             if not self.hier:
-                                if line.endswith("\\") or line.endswith("/"):
+                                if line.endswith(("\\", "/")):
                                     line = line[:-1]
                                 self.hier = pathlib.Path(line).resolve().parent
                             self.fnames.append(line)
                     except FileNotFoundError:
                         raise ValueError('Input name is not a usable file for multi '
-                                         'mode: should contain (only) path names')
+                                         'mode: should contain (only) path names') from None
             elif inp:
                 self.fnames = inp
             else:
-                raise ValueError('Need filename or list of files for application type'
-                                 ' "multi"')
+                raise ValueError('Need filename or list of files for application type "multi"')
             self.readini(os.path.commonpath(self.fnames))
         else:
             raise ValueError('Execution mode could not be determined from input')
@@ -170,7 +170,7 @@ class LBase:
         if len(self.fnames) > 0:
             self.p["filelist"] = self.fnames
         for ix, name in enumerate(self.fnames):
-            if name.endswith("\\") or name.endswith("/"):
+            if name.endswith(("\\", "/")):
                 self.fnames[ix] = name[:-1]
 
     def readini(self, path=None):
@@ -216,10 +216,7 @@ class LBase:
         try:
             test = edfile.read_text()
         except FileNotFoundError:
-            test = '\n'.join(("program = 'SciTE'",
-                              "file-option = '-open:{}'",
-                              "line-option = '-goto:{}'",
-                              ""))
+            test = "program = 'SciTE'\\nfile-option = '-open:{}'\\nline-option = '-goto:{}'\\n"
             edfile.write_text(test)
         self.editor_option = [x.split(' = ')[1].strip("'")
                               for x in test.strip().split('\n')]
@@ -277,10 +274,8 @@ class LBase:
             else:
                 mld = ""
                 test = str(test)
-                try:
+                with contextlib.suppress(ValueError):
                     self._mru_items["dirs"].remove(test)
-                except ValueError:
-                    pass
                 self._mru_items["dirs"].insert(0, test)
                 self.s += f"\nin {test}"
                 self.p["pad"] = test
@@ -302,11 +297,9 @@ class LBase:
         mld = ''
         dest_ok = patt_ok = False
         if self.quiet_options:
-            if 'dest' in self.quiet_options:
-                if self.quiet_options['dest'] in ('single', 'multi'):
+            if self.quiet_options.get('dest', '') in ('single', 'multi'):
                     dest_ok = True
-            if 'pattern' in self.quiet_options:
-                if self.quiet_options['pattern']:
+            if self.quiet_options.get('pattern', ''):
                     patt_ok = True
         if not dest_ok or not patt_ok:
             mld = 'Please configure all options for quiet mode'
@@ -333,7 +326,7 @@ class LBase:
         else:
             mld = 'De opgegeven directory is geen (hg of git) repository'
         if command:
-            result = subprocess.run(command, cwd=str(cwd), stdout=subprocess.PIPE).stdout
+            result = subprocess.run(command, cwd=str(cwd), stdout=subprocess.PIPE, check=False).stdout
             self.p['pad'] = ''
             # self.p['filelist'] = [str(repo_loc / name)
             #                       for name in str(result, encoding='utf-8').split('\n')

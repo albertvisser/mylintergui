@@ -46,7 +46,7 @@ def lint_all(args):
         Main(args)
 
 
-class Main():
+class Main:
     """Main class for applying a linter to one or more files
     """
 
@@ -76,7 +76,7 @@ class Main():
                 command = ['git', 'ls-files']
         if not command:
             return
-        result = subprocess.run(command, stdout=subprocess.PIPE).stdout
+        result = subprocess.run(command, stdout=subprocess.PIPE, check=False).stdout
         for name in str(result, encoding='utf-8').split('\n'):
             self.files.append(repo_loc / name)
 
@@ -88,7 +88,7 @@ class Main():
             if word == '<src>':
                 command[ix] = str(item)
         if not out:
-            result = subprocess.run(command)
+            subprocess.run(command, check=False)
             return
         if out == 'auto':
             dts = datetime.datetime.today().strftime('%Y%m%d%H%M%S')

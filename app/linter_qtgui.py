@@ -396,7 +396,7 @@ class Results(qtw.QDialog):
                     print('', file=f_out)
                     print(data, file=f_out)
             msgstart = 'Last o'
-        qtw.QMessageBox.information(self, self.parent.title, '{msgstart}utput saved as {fname}')
+        qtw.QMessageBox.information(self, self.parent.title, f'{msgstart}utput saved as {fname}')
 
     def help(self):
         """suggest workflow
@@ -425,7 +425,7 @@ class Results(qtw.QDialog):
         """
         fname = self.filelist.currentText()
         prog, fileopt, _ = self.parent.editor_option
-        subprocess.run(prog + [fileopt.format(fname)])  # , lineopt.format(line)])
+        subprocess.run(prog + [fileopt.format(fname)], check=False)  # , lineopt.format(line)])
 
 
 class MainFrame(qtw.QWidget, LBase):
@@ -470,7 +470,7 @@ class MainFrame(qtw.QWidget, LBase):
         self.grid.addLayout(box, self.row, 0, 2, 1)
         self.linters = qtw.QButtonGroup(self)
 
-        for linter in cmddict.keys():
+        for linter in cmddict:
             box = qtw.QHBoxLayout()
             linter_text = 'py&lint' if linter == 'pylint' else '&' + linter
             btn = qtw.QRadioButton(linter_text.title(), self)
@@ -622,10 +622,7 @@ class MainFrame(qtw.QWidget, LBase):
     def check_case(self, inp):
         """autocompletion voor zoektekst in overeenstemming brengen met case
         indicator"""
-        if inp == core.Qt.Checked:
-            new_value = core.Qt.CaseSensitive
-        else:
-            new_value = core.Qt.CaseInsensitive
+        new_value = core.Qt.CaseSensitive if inp == core.Qt.Checked else core.Qt.CaseInsensitive
         self.vraag_zoek.setAutoCompletionCaseSensitivity(new_value)
 
     def check_loc(self, txt):
@@ -816,4 +813,4 @@ class MainFrame(qtw.QWidget, LBase):
         if not test or test == 'default':
             return
         fnaam = checktypes[test][linter][-1].split('=')[-1]
-        subprocess.run(['xdg-open', fnaam])
+        subprocess.run(['xdg-open', fnaam], check=False)

@@ -7,7 +7,7 @@ import subprocess
 from .linter_config import cmddict, checktypes
 
 
-class Linter(object):
+class Linter:
     """interpreteren van de parameters en uitvoeren van de linter aanroep
     """
     def __init__(self, **parms):
@@ -87,9 +87,8 @@ class Linter(object):
         als is_list = False dan wordt van de doorgegeven naam eerst een list
         gemaakt. Daardoor hebben we altijd een iterable met directorynamen.
         """
-        if os.path.isdir(pad):
-            if os.path.basename(pad) not in self.p['blacklist']['exclude_dirs']:
-                self.dirnames.add(pad)
+        if os.path.isdir(pad) and os.path.basename(pad) not in self.p['blacklist']['exclude_dirs']:
+            self.dirnames.add(pad)
         if self.p["maxdepth"] != -1:
             level += 1
             if level > self.p["maxdepth"]:
@@ -139,11 +138,11 @@ class Linter(object):
         """
         for name in self.filenames:
             props = cmddict[self.p['linter'].lower()]
-            command = [x.replace('{}', '{}'.format(name)) for x in props['command']]
+            command = [x.replace('{}', f'{name}') for x in props['command']]
             command[2:3] += checktypes[self.p['mode']][self.p['linter'].lower()]
-            go = subprocess.run(command, stdout=subprocess.PIPE)
+            go = subprocess.run(command, stdout=subprocess.PIPE, check=False)
             if not go.stdout:
-                self.results[name] = 'No results for {}'.format(name)
+                self.results[name] = f'No results for {name}'
             else:
                 self.results[name] = str(go.stdout, encoding='utf-8')
 
