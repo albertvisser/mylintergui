@@ -497,14 +497,13 @@ class MainFrame(qtw.QWidget, LBase):
                 initial = self.fnames[0]
             self.zoek = qtw.QPushButton("&Zoek")
             self.zoek.clicked.connect(self.zoekdir)
-            self.vraag_dir = self.add_combobox_row("In directory:",
-                                                   self._mru_items["dirs"],
+            self.vraag_dir = self.add_combobox_row("In directory:", self._mru_items["dirs"],
                                                    initial=initial, button=self.zoek)
             self.vraag_dir.setCompleter(None)
             self.vraag_dir.editTextChanged[str].connect(self.check_loc)
         elif self.mode == Mode.multi.value:
-            self.grid.addWidget(qtw.QLabel('In de volgende files/directories:', self),
-                                self.row, 0, 1, 3)
+            self.grid.addWidget(qtw.QLabel('In de volgende files/directories:', self), self.row,
+                                0, 1, 3)
             self.row += 1
             self.lbox = qtw.QListWidget(self)
             self.lbox.insertItems(0, self.fnames)
@@ -514,16 +513,13 @@ class MainFrame(qtw.QWidget, LBase):
             self.row += 1
             self.conf_filter = qtw.QPushButton('Configure', self)
             self.conf_filter.clicked.connect(self.configure_filter)
-            self.vraag_filter = self.add_checkbox_row(
-                'Use global whitelist/blacklist',
-                toggle=True,
-                button=self.conf_filter)
+            self.vraag_filter = self.add_checkbox_row('Use global whitelist/blacklist',
+                                                      toggle=True, button=self.conf_filter)
         if self.mode == Mode.standard.value:
             self.row += 1
             self.p['fromrepo'] = self.repo_only
             self.vraag_repo = self.add_checkbox_row(
-                'Check repository files only (also does subdirectories)',
-                self.p['fromrepo'])
+                    'Check repository files only (also does subdirectories)', self.p['fromrepo'])
         if self.mode != Mode.single.value or os.path.isdir(self.fnames[0]):
             txt = ''
             if self.mode == Mode.multi.value:
@@ -533,22 +529,16 @@ class MainFrame(qtw.QWidget, LBase):
             self.vraag_diepte = qtw.QSpinBox(self)
             self.vraag_diepte.setMinimum(-1)
             self.vraag_diepte.setValue(5)
-            self.vraag_links = self.add_checkbox_row(
-                "symlinks volgen - max. diepte (-1 is alles):",
-                spinner=self.vraag_diepte)
-            self.ask_skipdirs = self.add_checkbox_row(
-                "selecteer (sub)directories om over te slaan")
-            self.ask_skipfiles = self.add_checkbox_row(
-                "selecteer bestanden om over te slaan")
-
+            self.vraag_links = self.add_checkbox_row("symlinks volgen - max. diepte (-1 is alles):",
+                                                     spinner=self.vraag_diepte)
+            self.ask_skipdirs = self.add_checkbox_row("selecteer (sub)directories om over te slaan")
+            self.ask_skipfiles = self.add_checkbox_row("selecteer bestanden om over te slaan")
         self.row += 1
         self.conf_quiet = qtw.QPushButton('Configure', self)
         self.conf_quiet.clicked.connect(self.configure_quiet)
-        self.vraag_quiet = self.add_checkbox_row(
-            'Output to file(s) directly',
-            toggle=self.dest_from_input,
-            button=self.conf_quiet)
-
+        self.vraag_quiet = self.add_checkbox_row('Output to file(s) directly',
+                                                 toggle=self.dest_from_input,
+                                                 button=self.conf_quiet)
         self.row += 1
         hbox = qtw.QHBoxLayout()
         hbox.addStretch(1)
@@ -813,4 +803,6 @@ class MainFrame(qtw.QWidget, LBase):
         if not test or test == 'default':
             return
         fnaam = checktypes[test][linter][-1].split('=')[-1]
-        subprocess.run(['xdg-open', fnaam], check=False)
+        # subprocess.run(['xdg-open', fnaam], check=False)
+        prog, fileopt, _ = self.editor_option
+        subprocess.run(prog + [fileopt.format(fnaam)])
