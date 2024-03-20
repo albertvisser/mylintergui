@@ -1,0 +1,13 @@
+[testdir]
+unittests
+
+[testscripts]
+main = test_main.py
+qtgui = test_qtgui.py
+exec = test_exec.py
+
+[testees]
+main = app/main.py
+qtgui = app/qtgui.py
+exec = app/exec.py
+
