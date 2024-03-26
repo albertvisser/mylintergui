@@ -25,7 +25,7 @@ class Linter:
             if x in self.p:
                 self.p[x] = y
             else:
-                raise TypeError('Onbekende optie ' + x)
+                raise ValueError('Onbekende optie ' + x)
         self.ok = True
         self.rpt = []  # verslag van wat er gebeurd is
         if not self.p['filelist'] and not self.p['pad']:
@@ -37,19 +37,19 @@ class Linter:
         if self.rpt:
             self.ok = False
             return
-        specs = ["Gecontroleerd met '{}'".format(self.p['linter'])]
+        specs = [f"Gecontroleerd met \'{self.p['linter']}\'"]
         self.filenames = []
         self.dirnames = set()
         if self.p['fromrepo']:
-            specs.append(" from repo manifest in {}".format(self.p['pad']))
+            specs.append(f" from repo manifest in {self.p['pad']}")
             self.get_from_repo()
         else:
             if self.p['pad']:
-                specs.append(" in {}".format(self.p['pad']))
+                specs.append(f" in {self.p['pad']}")
                 self.subdirs(self.p['pad'])
             else:
                 if len(self.p['filelist']) == 1:
-                    specs.append(" in {}".format(self.p['filelist'][0]))
+                    specs.append(f" in {self.p['filelist'][0]}")
                 else:
                     specs.append(" in opgegeven bestanden/directories")
                 for entry in self.p['filelist']:
@@ -64,10 +64,10 @@ class Linter:
         """get files from repo manifest
         also apply blacklisted names
         """
-        if not self.p['filelist']:
-            # get files from manifest (in case of standalone version of backend)
-            # let's assume we'll always be going by the frontend for now
-            pass
+        # if not self.p['filelist']:
+        #     # get files from manifest (in case of standalone version of backend)
+        #     # let's assume we'll always be going by the frontend for now
+        #     pass
         self.filenames = []
         for entry in self.p['filelist']:
             # hlp = pathlib.Path(entry)

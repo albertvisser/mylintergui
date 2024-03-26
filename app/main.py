@@ -5,14 +5,15 @@ het meeste hiervan bevind zich in een class die als mixin gebruikt wordt
 import sys
 import os
 import pathlib
-import enum
+# import enum
+import datetime
 import contextlib
 import subprocess
 import json
 # import app.qtqui as gui
 from app import qtgui as gui
 from .exec import Linter
-from .config import Mode, cmddict, checktypes
+from .config import Mode, checktypes  # , cmddict
 
 origpath = sys.path
 sys.path.insert(0, str(pathlib.Path.home() / 'bin'))
@@ -210,7 +211,8 @@ class Base:
         except FileNotFoundError:
             test = initial_edfile
             edfile.write_text(test)
-        self.editor_option = [x.split(' = ')[1].strip("'") for x in test.split('\n')]
+        print(test)
+        self.editor_option = [x.split(' = ')[1].strip("'") for x in test.split('\n') if x]
         if self.editor_option[0].startswith('['):
             command_list = [x[1:-1] for x in self.editor_option[0][1:-1].split(', ')]
             self.editor_option[0] = command_list
@@ -250,7 +252,7 @@ class Base:
             elif self.mode != Mode.single.value or os.path.isdir(self.fnames[0]):
                 self.checksubs(self.gui.get_checkbox_value(self.gui.vraag_subs),
                                self.gui.get_checkbox_value(self.gui.vraag_links),
-                               self.gui.get_spinbox_value(self.vraag_diepte))
+                               self.gui.get_spinbox_value(self.gui.vraag_diepte))
             elif self.mode == Mode.single.value and os.path.islink(self.fnames[0]):
                 self.p["follow_symlinks"] = True
         if not mld and self.gui.get_checkbox_value(self.gui.vraag_quiet):
@@ -300,7 +302,7 @@ class Base:
                 if self.gui.get_checkbox_value(self.gui.ask_skipfiles):
                     self.names = sorted(self.do_checks.filenames)
                     canceled = not gui.show_dialog(gui.SelectNames)
-                    if canceled and not self.ask_skipdirs.isChecked():
+                    if canceled and not self.gui.get_checkbox_value(self.gui.ask_skipdirs):
                         # canceled = True
                         break
                     if not canceled:
@@ -310,7 +312,7 @@ class Base:
                 return
 
         self.gui.execute_action()
-        dlg = gui.Results(self.gui, common_part)
+        gui.Results(self.gui, common_part)
 
     def check_loc(self, txt):
         """update location to get settings from
@@ -378,9 +380,9 @@ class Base:
         dest_ok = patt_ok = False
         if self.quiet_options:
             if self.quiet_options.get('dest', '') in ('single', 'multi'):
-                    dest_ok = True
+                dest_ok = True
             if self.quiet_options.get('pattern', ''):
-                    patt_ok = True
+                patt_ok = True
         if not dest_ok or not patt_ok:
             mld = 'Please configure all options for quiet mode'
         return mld
@@ -433,14 +435,14 @@ class Base:
         ok = gui.show_dialog(gui.QuietOptions)
         if not ok:
             return
-        if self.newquietoptions['single_file']:
+        if self.gui.newquietoptions['single_file']:
             self.quiet_options['dest'] = Mode.single.name
         else:
             self.quiet_options['dest'] = Mode.multi.name
-        test = self.newquietoptions['fname']
+        test = self.gui.newquietoptions['fname']
         if test:
             self.quiet_options['fname'] = test
-        test = self.newquietoptions['pattern']
+        test = self.gui.newquietoptions['pattern']
         if test:
             self.quiet_options['pattern'] = test
 
@@ -449,7 +451,7 @@ class Base:
         """
         # dlg = FilterOptions(self).exec_()
         # if dlg == qtw.QDialog.Accepted:
-        ok = gui.show_dialog(gui.Filteroptions)
+        ok = gui.show_dialog(gui.FilterOptions)
         if ok:
             self.update_blacklistfile()
 
@@ -473,10 +475,10 @@ class Base:
         rekening houden met verschillende opbouw van de optie string:
         voor pylint is het ['name', 'value'], voor flake8 is het ['name=value']
         """
-        linter = self.gui.get_radiogroup_checked(self.linters).replace('&', '').lower()
+        linter = self.gui.get_radiogroup_checked(self.gui.linters).replace('&', '').lower()
         if not linter:
             return
-        test = self.gui.get_radiogroup_checked(self.check_options)[1:].lower()
+        test = self.gui.get_radiogroup_checked(self.gui.check_options)[1:].lower()
         if not test or test == 'default':
             return
         fnaam = checktypes[test][linter][-1].split('=')[-1]

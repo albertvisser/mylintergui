@@ -2,7 +2,6 @@
 """
 import os
 import sys
-import datetime
 import subprocess
 import PyQt5.QtCore as core
 import PyQt5.QtGui as gui
@@ -27,7 +26,7 @@ def waiting_cursor(func):
 
 def show_dialog(cls, *args, **kwargs):
     "execute the given dialog and return whether it's confirmed or not"
-    dlg = cls(self, *args, **kwargs).exec_()
+    dlg = cls(*args, **kwargs).exec_()
     return dlg == qtw.QDialog.Accepted
 
 
@@ -294,7 +293,7 @@ class Results(qtw.QDialog):
         hbox = qtw.QHBoxLayout()
         label_txt = f"{self.parent.master.do_checks.rpt[0]} ({len(self.parent.master.do_checks.results)} items)"
         if self.parent.master.mode == Mode.multi.value:
-            label_txt += '\n' + common_path_txt.format(self.parent.master.common.rstrip(os.sep))
+            label_txt += '\n' + common_path_txt.format(self.common.rstrip(os.sep))
         self.txt = qtw.QLabel(label_txt, self)
         hbox.addWidget(self.txt)
         vbox.addLayout(hbox)
@@ -395,7 +394,7 @@ class Results(qtw.QDialog):
         else:
             for name, data in self.parent.master.do_checks.results.items():
                 fname = self.parent.master.get_output_filename(
-                        self.parent.newquietoptions['pattern'], name)
+                    self.parent.newquietoptions['pattern'], name)
                 with open(fname, 'w') as f_out:
                     print(f'results for {name}', file=f_out)
                     print('', file=f_out)
@@ -449,6 +448,7 @@ class MainGui(qtw.QWidget):
         self.setWindowIcon(self.appicon)
 
     def setup_screen(self):
+        "build gui"
         self.grid = qtw.QGridLayout()
         self.row = -1
 
@@ -513,7 +513,7 @@ class MainGui(qtw.QWidget):
                                 0, 1, 3)
             self.row += 1
             self.lbox = qtw.QListWidget(self)
-            self.lbox.insertItems(0, self.fnames)
+            self.lbox.insertItems(0, self.master.fnames)
             self.grid.addWidget(self.lbox, self.row, 0, 1, 3)
 
         if self.master.mode != Mode.single.value:
@@ -526,8 +526,8 @@ class MainGui(qtw.QWidget):
             self.row += 1
             self.master.p['fromrepo'] = self.master.repo_only
             self.vraag_repo = self.add_checkbox_row(
-                    'Check repository files only (also does subdirectories)',
-                    self.master.p['fromrepo'])
+                'Check repository files only (also does subdirectories)',
+                self.master.p['fromrepo'])
         if self.master.mode != Mode.single.value or os.path.isdir(self.master.fnames[0]):
             txt = ''
             if self.master.mode == Mode.multi.value:

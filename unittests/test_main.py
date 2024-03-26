@@ -3,7 +3,7 @@
 from app import main as testee
 
 
-def test_get_iniloc(monkeypatch, capsys):
+def test_get_iniloc():
     """unittest for main.get_iniloc
     """
     basepath = testee.pathlib.Path('~/.mylinter').expanduser()
@@ -28,7 +28,7 @@ def test_get_iniloc(monkeypatch, capsys):
 
     path = basepath / '~projects_lintergui'
     assert testee.get_iniloc(str(testee.pathlib.Path(''))) == (path, path / mrufile,
-                                                                   path / optfile)
+                                                               path / optfile)
     path = basepath / '~projects_lintergui_test'
     assert testee.get_iniloc(str(testee.pathlib.Path('test'))) == (path, path / mrufile,
                                                                    path / optfile)
@@ -38,10 +38,15 @@ def test_get_iniloc(monkeypatch, capsys):
 
 
 class MockMainGui:
+    "stub for gui.MainGui"
     def __init__(self, *args, **kwargs):
         print('called MainGui.__init__ with args', args, kwargs)
     def setup_screen(self):
+        "stub"
         print('called MainGui.setup_screen')
+    def set_checkbox_value(self, *args):
+        "stub"
+        print('called MainGui.set_checkbox_value with args', args)
 
 
 class TestBase:
@@ -74,8 +79,6 @@ class TestBase:
             print('called Base.build_blacklist')
         def mock_set_mode(self, *args):
             print('called Base.set_mode with args', args)
-        def mock_setup(self):
-            print('called Base.setup_screen')
         monkeypatch.setattr(testee.Base, 'get_editor_option', mock_get_option)
         monkeypatch.setattr(testee.Base, 'build_blacklist', mock_blacklist)
         monkeypatch.setattr(testee.Base, 'set_mode', mock_set_mode)
@@ -111,7 +114,7 @@ class TestBase:
         """unittest for Base.set_mode
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.set_mode(args) == "expected_result"
+        assert testobj.set_mode('args') == "expected_result"
         assert capsys.readouterr().out == ("")
 
     def test_readini(self, monkeypatch, capsys, tmp_path):
@@ -305,86 +308,273 @@ class TestBase:
         assert testobj.doe() == "expected_result"
         assert capsys.readouterr().out == ("")
 
-    def _test_check_loc(self, monkeypatch, capsys):
+    def test_check_loc(self, monkeypatch, capsys, tmp_path):
         """unittest for Base.check_loc
         """
+        def mock_readini(arg):
+            print(f'called Base.readini with arg {arg}')
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.check_loc(txt) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.p = {"subdirs": "x", "fromrepo": "y"}
+        testobj.readini = mock_readini
+        testobj.gui.vraag_subs = "subs"
+        testobj.gui.vraag_repo = "repo"
+        file = tmp_path / "test"
+        txt = str(file)
+        testobj.check_loc(txt)
+        assert capsys.readouterr().out == ""
+        file.touch()
+        testobj.check_loc(txt + '/')
+        assert capsys.readouterr().out == ""
+        testobj.check_loc(txt)
+        assert capsys.readouterr().out == (
+                f"called Base.readini with arg {txt}\n"
+                "called MainGui.set_checkbox_value with args ('subs', 'x')\n"
+                "called MainGui.set_checkbox_value with args ('repo', 'y')\n")
 
-    def _test_check_type(self, monkeypatch, capsys):
+    def test_check_type(self, monkeypatch, capsys):
         """unittest for Base.check_type
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.check_type(item) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.p = {'mode': None}
+        assert testobj.check_type('') == "Please select a check type"
+        assert testobj.p["mode"] is None
+        assert testobj.check_type('x') == ""
+        assert testobj.p["mode"] == "x"
 
-    def _test_check_linter(self, monkeypatch, capsys):
+    def test_check_linter(self, monkeypatch, capsys):
         """unittest for Base.check_linter
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.check_linter(item) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.p = {'linter': None}
+        assert testobj.check_linter('') == "Please choose a linter to use"
+        assert testobj.p["linter"] is None
+        assert testobj.check_linter('x') == ""
+        assert testobj.p["linter"] == "x"
 
-    def _test_checkpath(self, monkeypatch, capsys):
+    def test_checkpath(self, monkeypatch, capsys, tmp_path):
         """unittest for Base.checkpath
         """
+        def mock_expand(arg):
+            print('called path.expanduser')
+            return arg
+        def mock_resolve():
+            print('called path.resolve')
+            raise FileNotFoundError
+        def mock_resolve_2(arg):
+            print('called path.resolve')
+            return arg
+        monkeypatch.setattr(testee.pathlib.Path, 'expanduser', mock_expand)
+        monkeypatch.setattr(testee.pathlib.Path, 'resolve', mock_resolve)
+        path_to_check = ''
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.checkpath(item) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj._mru_items = {"dirs": []}
+        testobj.s = 'xxx'
+        testobj.p = {}
+        assert testobj.checkpath(path_to_check) == "Please enter or select a directory"
+        assert capsys.readouterr().out == ""
+        path_to_check = tmp_path / 'test'
+        assert not path_to_check.exists()
+        assert testobj.checkpath(path_to_check) == "De opgegeven directory bestaat niet"
+        assert capsys.readouterr().out == ("called path.expanduser\ncalled path.resolve\n")
+        monkeypatch.setattr(testee.pathlib.Path, 'resolve', mock_resolve_2)
+        assert testobj.checkpath(path_to_check) == ""
+        assert testobj._mru_items == {"dirs": [str(path_to_check)]}
+        assert testobj.s == f'xxx\nin {path_to_check}'
+        assert testobj.p["pad"] == str(path_to_check)
+        assert testobj.p["filelist"] == ''
+        assert capsys.readouterr().out == ("called path.expanduser\ncalled path.resolve\n")
 
-    def _test_checksubs(self, monkeypatch, capsys):
+    def test_checksubs(self, monkeypatch, capsys):
         """unittest for Base.checksubs
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.checksubs(*items) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.s = 'xxx'
+        testobj.p = {}
+        testobj.checksubs(False, True, 3)
+        assert testobj.s == 'xxx'
+        assert not testobj.p['subdirs']
+        assert testobj.p['follow_symlinks']
+        assert testobj.p['maxdepth'] == 3
+        testobj.checksubs(True, True, 3)
+        assert testobj.s == 'xxx en onderliggende directories'
+        assert testobj.p['subdirs']
+        assert testobj.p['follow_symlinks']
+        assert testobj.p['maxdepth'] == 3
 
-    def _test_check_quiet_options(self, monkeypatch, capsys):
+    def test_check_quiet_options(self, monkeypatch, capsys):
         """unittest for Base.check_quiet_options
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.check_quiet_options() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.quiet_options = {}
+        assert testobj.check_quiet_options() == "Please configure all options for quiet mode"
+        testobj.quiet_options['dest'] = 'xxx'
+        testobj.quiet_options['pattern'] = 'yyy'
+        assert testobj.check_quiet_options() == "Please configure all options for quiet mode"
+        testobj.quiet_options['dest'] = 'single'
+        testobj.quiet_options['pattern'] = 'yyy'
+        assert testobj.check_quiet_options() == ""
+        testobj.quiet_options['dest'] = 'multi'
+        testobj.quiet_options['pattern'] = ''
+        assert testobj.check_quiet_options() == "Please configure all options for quiet mode"
+        testobj.quiet_options['dest'] = ''
+        testobj.quiet_options['pattern'] = 'yyy'
+        assert testobj.check_quiet_options() == "Please configure all options for quiet mode"
 
     def _test_checkrepo(self, monkeypatch, capsys):
         """unittest for Base.checkrepo
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.checkrepo(is_checked, path) == "expected_result"
+        assert testobj.checkrepo('is_checked', 'path') == "expected_result"
         assert capsys.readouterr().out == ("")
 
-    def _test_configure_quiet(self, monkeypatch, capsys):
+    def test_configure_quiet(self, monkeypatch, capsys):
         """unittest for Base.configure_quiet
         """
+        def mock_show(*args):
+            print('called gui.show_dialog with args', args)
+            return False
+        def mock_show_2(*args):
+            print('called gui.show_dialog with args', args)
+            return True
+        monkeypatch.setattr(testee.gui, 'show_dialog', mock_show)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.configure_quiet() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.quiet_options = {}
+        testobj.newquietoptions = {}
+        testobj.configure_quiet()
+        assert testobj.quiet_options == {}
+        assert capsys.readouterr().out == (
+                f"called gui.show_dialog with args ({testee.gui.QuietOptions},)\n")
+        monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_2)
+        testobj.newquietoptions = {'single_file': False, 'fname': '', 'pattern': ''}
+        testobj.configure_quiet()
+        assert testobj.quiet_options == {'dest': testee.Mode.multi.name}
+        assert capsys.readouterr().out == (
+                f"called gui.show_dialog with args ({testee.gui.QuietOptions},)\n")
+        testobj.quiet_options = {}
+        testobj.newquietoptions = {'single_file': True, 'fname': 'xxx', 'pattern': 'yyy'}
+        testobj.configure_quiet()
+        assert testobj.quiet_options == {'dest': testee.Mode.single.name, 'fname': 'xxx',
+                                         'pattern': 'yyy'}
+        assert capsys.readouterr().out == (
+                f"called gui.show_dialog with args ({testee.gui.QuietOptions},)\n")
 
-    def _test_configure_filter(self, monkeypatch, capsys):
+    def test_configure_filter(self, monkeypatch, capsys):
         """unittest for Base.configure_filter
         """
+        def mock_show(*args):
+            print('called gui.show_dialog with args', args)
+            return False
+        def mock_show_2(*args):
+            print('called gui.show_dialog with args', args)
+            return True
+        def mock_update():
+            print('called Base.update_blacklistfile')
+        monkeypatch.setattr(testee.gui, 'show_dialog', mock_show)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.configure_filter() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.update_blacklistfile = mock_update
+        testobj.configure_filter()
+        assert capsys.readouterr().out == (
+                f"called gui.show_dialog with args ({testee.gui.FilterOptions},)\n")
+        monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_2)
+        testobj.configure_filter()
+        assert capsys.readouterr().out == (
+                f"called gui.show_dialog with args ({testee.gui.FilterOptions},)\n"
+                "called Base.update_blacklistfile\n")
 
-    def _test_get_output_filename(self, monkeypatch, capsys):
+    def test_get_output_filename(self, monkeypatch, capsys):
         """unittest for Base.get_output_filename
         """
+        fixdate = testee.datetime.datetime(2000, 1, 1)
+        class mock_datetime:
+            "stub for datetime.datetime"
+            def today():
+                return fixdate
+        monkeypatch.setattr(testee.datetime, 'datetime', mock_datetime)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.get_output_filename(name, fromname='') == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.quiet_options = {'ignore': 'xxx'}
+        testobj.p = {'linter': 'yyy'}
+        name = 'test/<filename>x<ignore><linter>-<date>'
+        assert testobj.get_output_filename(name) == 'test/xyyy-20000101000000'
+        name = 'test//<filename>-ignore<linter>-<date>'
+        assert testobj.get_output_filename(name, 'zzzxxx') == "test/zzzxxx-ignoreyyy-20000101000000"
+        name = 'test//<filename>-<ignore><linter>-<date>'
+        assert testobj.get_output_filename(name, 'zzzxxx') == "test/zzz-yyy-20000101000000"
 
-    def _test_configure_linter(self, monkeypatch, capsys):
+    def test_configure_linter(self, monkeypatch, capsys):
         """unittest for Base.configure_linter
         """
+        def mock_check(*args):
+            nonlocal counter
+            print('called MainGui.get_radiogroup_checked with args', args)
+            return ''
+        counter = 0
+        def mock_check_2(*args):
+            nonlocal counter
+            print('called MainGui.get_radiogroup_checked with args', args)
+            counter += 1
+            if counter == 1:
+                return 'x&xx'
+            return ''
+        def mock_check_3(*args):
+            nonlocal counter
+            print('called MainGui.get_radiogroup_checked with args', args)
+            counter += 1
+            if counter == 1:
+                return 'x&xx'
+            return '&Default'
+        def mock_check_4(*args):
+            nonlocal counter
+            print('called MainGui.get_radiogroup_checked with args', args)
+            counter += 1
+            if counter == 1:
+                return 'X&xx'
+            return 'yyyy'
+        def mock_run(*args):
+            print('called subprocess.run with args', args)
+        monkeypatch.setattr(testee, 'checktypes', {'yyy': {'xxx': ['qq', 'rr=ss']}})
+        monkeypatch.setattr(testee.subprocess, 'run', mock_run)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.configure_linter() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.linters = 'qqq'
+        testobj.check_options = 'check'
+        testobj.editor_option = (['aa'], '{} bb', 'cc')
+        testobj.gui.get_radiogroup_checked = mock_check
+        testobj.configure_linter()
+        assert capsys.readouterr().out == "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
+        testobj.gui.get_radiogroup_checked = mock_check_2
+        testobj.configure_linter()
+        assert capsys.readouterr().out == (
+                "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
+                "called MainGui.get_radiogroup_checked with args ('check',)\n")
+        counter = 0
+        testobj.gui.get_radiogroup_checked = mock_check_3
+        testobj.configure_linter()
+        assert capsys.readouterr().out == (
+                "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
+                "called MainGui.get_radiogroup_checked with args ('check',)\n")
+        counter = 0
+        testobj.gui.get_radiogroup_checked = mock_check_4
+        # breakpoint()
+        testobj.configure_linter()
+        assert capsys.readouterr().out == (
+                "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
+                "called MainGui.get_radiogroup_checked with args ('check',)\n"
+                "called subprocess.run with args (['aa', 'ss bb'],)\n")
 
-    def _test_determine_common(self, monkeypatch, capsys):
+    def test_determine_common(self, monkeypatch, capsys):
         """unittest for Base.determine_common
         """
+        # monkeypatch.setattr(testee.os.path, 'commonpath', mock_commonpath)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.determine_common() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.mode = testee.Mode.single.value
+        testobj.fnames = ['hello']
+        assert testobj.determine_common() == "hello"
+        testobj.mode = testee.Mode.multi.value
+        testobj.fnames = ['hello/xx', 'hello/yy']
+        monkeypatch.setattr(testee.os.path, 'isfile', lambda *x: False)
+        assert testobj.determine_common() == "hello"
+        testobj.fnames = ['hello/world/xx', 'hello/world/yy']
+        monkeypatch.setattr(testee.os.path, 'isfile', lambda *x: True)
+        assert testobj.determine_common() == "hello" + testee.os.sep
+        testobj.mode = None
+        testobj.p = {"pad": 'hello'}
+        assert testobj.determine_common() == "hello" + testee.os.sep
