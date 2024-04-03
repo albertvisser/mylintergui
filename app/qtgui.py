@@ -107,7 +107,7 @@ class QuietOptions(qtw.QDialog):
     def __init__(self, parent):
         self.parent = parent
         super().__init__(parent)
-        self.setWindowTitle(self.master.parent.title + " - configure")
+        self.setWindowTitle(self.parent.master.title + " - configure")
         self.setWindowIcon(self.parent.appicon)
         vbox = qtw.QVBoxLayout()
         vbox.addWidget(qtw.QLabel("Send output to:", self))
@@ -198,7 +198,8 @@ class SelectNames(qtw.QDialog):
         self.parent = parent
         super().__init__(parent)
         self.setWindowTitle(self.parent.master.title + " - file list")
-        self.setWindowIcon(gui.QIcon(self.parent.master.iconame))
+        # self.setWindowIcon(gui.QIcon(self.parent.master.iconame))
+        self.setWindowIcon(self.parent.appicon)
         vbox = qtw.QVBoxLayout()
 
         if files:
@@ -287,7 +288,8 @@ class Results(qtw.QDialog):
         breedte = 50 if self.parent.master.mode == Mode.single.value else 150
         super().__init__(parent)
         self.setWindowTitle(self.parent.master.resulttitel)
-        self.setWindowIcon(gui.QIcon(self.parent.master.iconame))
+        # self.setWindowIcon(gui.QIcon(self.parent.master.iconame))
+        self.setWindowIcon(self.parent.appicon)
         vbox = qtw.QVBoxLayout()
 
         hbox = qtw.QHBoxLayout()

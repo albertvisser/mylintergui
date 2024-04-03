@@ -357,7 +357,7 @@ class TestBase:
         def mock_expand(arg):
             print('called path.expanduser')
             return arg
-        def mock_resolve():
+        def mock_resolve(arg):
             print('called path.resolve')
             raise FileNotFoundError
         def mock_resolve_2(arg):
@@ -439,19 +439,19 @@ class TestBase:
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show)
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.quiet_options = {}
-        testobj.newquietoptions = {}
+        testobj.gui.newquietoptions = {}
         testobj.configure_quiet()
         assert testobj.quiet_options == {}
         assert capsys.readouterr().out == (
                 f"called gui.show_dialog with args ({testee.gui.QuietOptions},)\n")
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_2)
-        testobj.newquietoptions = {'single_file': False, 'fname': '', 'pattern': ''}
+        testobj.gui.newquietoptions = {'single_file': False, 'fname': '', 'pattern': ''}
         testobj.configure_quiet()
         assert testobj.quiet_options == {'dest': testee.Mode.multi.name}
         assert capsys.readouterr().out == (
                 f"called gui.show_dialog with args ({testee.gui.QuietOptions},)\n")
         testobj.quiet_options = {}
-        testobj.newquietoptions = {'single_file': True, 'fname': 'xxx', 'pattern': 'yyy'}
+        testobj.gui.newquietoptions = {'single_file': True, 'fname': 'xxx', 'pattern': 'yyy'}
         testobj.configure_quiet()
         assert testobj.quiet_options == {'dest': testee.Mode.single.name, 'fname': 'xxx',
                                          'pattern': 'yyy'}
@@ -534,8 +534,8 @@ class TestBase:
         monkeypatch.setattr(testee, 'checktypes', {'yyy': {'xxx': ['qq', 'rr=ss']}})
         monkeypatch.setattr(testee.subprocess, 'run', mock_run)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.linters = 'qqq'
-        testobj.check_options = 'check'
+        testobj.gui.linters = 'qqq'
+        testobj.gui.check_options = 'check'
         testobj.editor_option = (['aa'], '{} bb', 'cc')
         testobj.gui.get_radiogroup_checked = mock_check
         testobj.configure_linter()

@@ -28,9 +28,9 @@ class TestLinter:
     def test_init(self, monkeypatch, capsys):
         """unittest for Linter.__init__
         """
-        def mock_get():
+        def mock_get(self):
             print('called Linter.get_from_repo')
-        def mock_subdirs(*args, **kwargs):
+        def mock_subdirs(self, *args, **kwargs):
             print('called Linter.subdirs with args', args, kwargs)
         p_start = {'linter': '', 'pad': '', 'filelist': [], 'subdirs': False,
                    "follow_symlinks": False, "maxdepth": 5, 'fromrepo': False, 'mode': '',
@@ -75,7 +75,7 @@ class TestLinter:
         assert testobj.dirnames == set()
         assert testobj.results == {}
         assert testobj.specs == ["Gecontroleerd met 'z'", " in xxx"]
-        assert capsys.readouterr().out == f"called Linter.subdirs with args ({testobj}, 'xxx') {{}}\n"
+        assert capsys.readouterr().out == "called Linter.subdirs with args ('xxx',) {}\n"
 
         testobj = testee.Linter(filelist=['xxx'], linter='z')
         assert testobj.ok
@@ -85,7 +85,7 @@ class TestLinter:
         assert testobj.results == {}
         assert testobj.specs == ["Gecontroleerd met 'z'", " in xxx"]
         assert capsys.readouterr().out == (
-                f"called Linter.subdirs with args ({testobj}, 'xxx') {{'is_list': False}}\n")
+                "called Linter.subdirs with args ('xxx',) {'is_list': False}\n")
 
         testobj = testee.Linter(filelist=['xxx', 'yyy'], linter='z')
         assert testobj.ok
@@ -95,8 +95,8 @@ class TestLinter:
         assert testobj.results == {}
         assert testobj.specs == ["Gecontroleerd met 'z'", " in opgegeven bestanden/directories"]
         assert capsys.readouterr().out == (
-                f"called Linter.subdirs with args ({testobj}, 'xxx') {{'is_list': False}}\n"
-                f"called Linter.subdirs with args ({testobj}, 'yyy') {{'is_list': False}}\n")
+                "called Linter.subdirs with args ('xxx',) {'is_list': False}\n"
+                "called Linter.subdirs with args ('yyy',) {'is_list': False}\n")
 
         testobj = testee.Linter(filelist=['xxx', 'yyy'], linter='z', subdirs=True)
         assert testobj.ok
@@ -108,8 +108,8 @@ class TestLinter:
         assert testobj.specs == ["Gecontroleerd met 'z'", " in opgegeven bestanden/directories",
                                  " en onderliggende directories"]
         assert capsys.readouterr().out == (
-                f"called Linter.subdirs with args ({testobj}, 'xxx') {{'is_list': False}}\n"
-                f"called Linter.subdirs with args ({testobj}, 'yyy') {{'is_list': False}}\n")
+                "called Linter.subdirs with args ('xxx',) {'is_list': False}\n"
+                "called Linter.subdirs with args ('yyy',) {'is_list': False}\n")
 
     def test_get_from_repo(self, monkeypatch, capsys):
         """unittest for Linter.get_from_repo

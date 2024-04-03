@@ -211,7 +211,7 @@ class Base:
         except FileNotFoundError:
             test = initial_edfile
             edfile.write_text(test)
-        print(test)
+        # print(test)
         self.editor_option = [x.split(' = ')[1].strip("'") for x in test.split('\n') if x]
         if self.editor_option[0].startswith('['):
             command_list = [x[1:-1] for x in self.editor_option[0][1:-1].split(', ')]
