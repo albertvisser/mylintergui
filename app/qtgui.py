@@ -281,6 +281,9 @@ class SelectNames(qtw.QDialog):
 class Results(qtw.QDialog):
     """Show results on screen
     """
+    helpinfo = ("Select a line and doubleclick or press Ctrl-G to open the indicated file\n"
+                "at the indicated line (not in single file mode)")
+
     def __init__(self, parent, common_path=''):
         self.parent = parent
         self.common = common_path
@@ -293,7 +296,8 @@ class Results(qtw.QDialog):
         vbox = qtw.QVBoxLayout()
 
         hbox = qtw.QHBoxLayout()
-        label_txt = f"{self.parent.master.do_checks.rpt[0]} ({len(self.parent.master.do_checks.results)} items)"
+        label_txt = (f"{self.parent.master.do_checks.rpt[0]}"
+                     f" ({len(self.parent.master.do_checks.results)} items)")
         if self.parent.master.mode == Mode.multi.value:
             label_txt += '\n' + common_path_txt.format(self.common.rstrip(os.sep))
         self.txt = qtw.QLabel(label_txt, self)
@@ -368,11 +372,11 @@ class Results(qtw.QDialog):
         self.results = []
         self.lijst.clear()
         self.parent.master.do_checks.rpt = ["".join(self.parent.master.do_checks.specs)]
-        self.parent.app.setOverrideCursor(gui.QCursor(core.Qt.WaitCursor))
+        # self.parent.app.setOverrideCursor(gui.QCursor(core.Qt.WaitCursor))
         self.parent.execute_action()
         self.populate_list()
         self.filelist.setCurrentIndex(0)
-        self.parent.app.restoreOverrideCursor()
+        # self.parent.app.restoreOverrideCursor()
 
     def kopie(self):
         """callback for button 'Copy to file'
@@ -381,7 +385,7 @@ class Results(qtw.QDialog):
         if not dlg:
             return
         if self.parent.newquietoptions['single_file']:
-            fname = self.parent.get_output_filename(self.parent.newquietoptions['fname'])
+            fname = self.parent.master.get_output_filename(self.parent.newquietoptions['fname'])
             with open(fname, "w") as f_out:
                 first_file = True
                 for name, data in self.parent.master.do_checks.results.items():
@@ -408,10 +412,7 @@ class Results(qtw.QDialog):
     def help(self):
         """suggest workflow
         """
-        qtw.QMessageBox.information(self, self.parent.master.title,
-                                    "Select a line and doubleclick or press Ctrl-G"
-                                    " to open the indicated file\n"
-                                    "at the indicated line (not in single file mode)")
+        qtw.QMessageBox.information(self, self.parent.master.title, self.helpinfo)
 
     def to_clipboard(self):
         """callback for button 'Copy to clipboard'
@@ -440,7 +441,7 @@ class MainGui(qtw.QWidget):
 
     QMainWindow is een beetje overkill, daarom maar een QWidget
     """
-    def __init__(self, master=None):
+    def __init__(self, master):
         self.app = qtw.QApplication(sys.argv)
         super().__init__()
         self.master = master
@@ -619,11 +620,11 @@ class MainGui(qtw.QWidget):
             self.grid.addWidget(chk, self.row, 1)
         return chk
 
-    def check_case(self, inp):
-        """autocompletion voor zoektekst in overeenstemming brengen met case indicator
-        """
-        new_value = core.Qt.CaseSensitive if inp == core.Qt.Checked else core.Qt.CaseInsensitive
-        self.vraag_zoek.setAutoCompletionCaseSensitivity(new_value)
+    # def check_case(self, inp):
+    #     """autocompletion voor zoektekst in overeenstemming brengen met case indicator
+    #     """
+    #     new_value = core.Qt.CaseSensitive if inp == core.Qt.Checked else core.Qt.CaseInsensitive
+    #     self.vraag_zoek.setAutoCompletionCaseSensitivity(new_value)
 
     def keyPressEvent(self, event):
         """event handler voor toetsaanslagen"""
@@ -633,7 +634,7 @@ class MainGui(qtw.QWidget):
     def get_radiogroup_checked(self, group):
         """return the text of the checked radiobutton
         """
-        test = group.checkedButton() or ''
+        test = group.checkedButton() or None
         if test:
             test = test.text()
         return test
