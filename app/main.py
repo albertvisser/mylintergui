@@ -240,20 +240,19 @@ class Base:
         test = self.gui.get_radiogroup_checked(self.gui.check_options)
         mld = self.check_type(test.replace('&', '').lower())
         if not mld:
-            test = self.gui.get_radiogroup_checked(self.gui.linters)
+            test = self.gui.get_radiogroup_checked(self.gui.linters) or '&'
             mld = self.check_linter(test.replace('&', '').lower())
         if not mld and self.mode == Mode.standard.value:
             mld = self.checkpath(self.gui.get_combobox_textvalue(self.gui.vraag_dir))
 
-        if not mld:
-            if self.mode == Mode.standard.value:  # and self.vraag_repo.isChecked():
+        if not mld and self.mode == Mode.standard.value:  # and self.vraag_repo.isChecked():
                 mld = self.checkrepo(self.gui.get_checkbox_value(self.gui.vraag_repo),
                                      self.gui.get_combobox_textvalue(self.gui.vraag_dir))
-            elif self.mode != Mode.single.value or os.path.isdir(self.fnames[0]):
+        if not mld and (self.mode != Mode.single.value or os.path.isdir(self.fnames[0])):
                 self.checksubs(self.gui.get_checkbox_value(self.gui.vraag_subs),
                                self.gui.get_checkbox_value(self.gui.vraag_links),
                                self.gui.get_spinbox_value(self.gui.vraag_diepte))
-            elif self.mode == Mode.single.value and os.path.islink(self.fnames[0]):
+        if not mld and (self.mode == Mode.single.value and os.path.islink(self.fnames[0])):
                 self.p["follow_symlinks"] = True
         if not mld and self.gui.get_checkbox_value(self.gui.vraag_quiet):
             mld = self.check_quiet_options()
@@ -407,7 +406,7 @@ class Base:
             cwd = test2
         else:
             mld = 'De opgegeven directory is geen (hg of git) repository'
-        if command:
+        if command and not mld:
             result = subprocess.run(command, cwd=str(cwd), stdout=subprocess.PIPE, check=False).stdout
             self.p['pad'] = ''
             # self.p['filelist'] = [str(repo_loc / name)
@@ -432,7 +431,7 @@ class Base:
         """
         # dlg = QuietOptions(self).exec_()
         # if dlg != qtw.QDialog.Accepted:
-        ok = gui.show_dialog(gui.QuietOptions)
+        ok = gui.show_dialog(gui.QuietOptions, self.gui)
         if not ok:
             return
         if self.gui.newquietoptions['single_file']:
@@ -451,7 +450,7 @@ class Base:
         """
         # dlg = FilterOptions(self).exec_()
         # if dlg == qtw.QDialog.Accepted:
-        ok = gui.show_dialog(gui.FilterOptions)
+        ok = gui.show_dialog(gui.FilterOptions, self.gui)
         if ok:
             self.update_blacklistfile()
 

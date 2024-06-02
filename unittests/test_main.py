@@ -443,20 +443,20 @@ class TestBase:
         testobj.configure_quiet()
         assert testobj.quiet_options == {}
         assert capsys.readouterr().out == (
-                f"called gui.show_dialog with args ({testee.gui.QuietOptions},)\n")
+                f"called gui.show_dialog with args ({testee.gui.QuietOptions}, {testobj.gui})\n")
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_2)
         testobj.gui.newquietoptions = {'single_file': False, 'fname': '', 'pattern': ''}
         testobj.configure_quiet()
         assert testobj.quiet_options == {'dest': testee.Mode.multi.name}
         assert capsys.readouterr().out == (
-                f"called gui.show_dialog with args ({testee.gui.QuietOptions},)\n")
+                f"called gui.show_dialog with args ({testee.gui.QuietOptions}, {testobj.gui})\n")
         testobj.quiet_options = {}
         testobj.gui.newquietoptions = {'single_file': True, 'fname': 'xxx', 'pattern': 'yyy'}
         testobj.configure_quiet()
         assert testobj.quiet_options == {'dest': testee.Mode.single.name, 'fname': 'xxx',
                                          'pattern': 'yyy'}
         assert capsys.readouterr().out == (
-                f"called gui.show_dialog with args ({testee.gui.QuietOptions},)\n")
+                f"called gui.show_dialog with args ({testee.gui.QuietOptions}, {testobj.gui})\n")
 
     def test_configure_filter(self, monkeypatch, capsys):
         """unittest for Base.configure_filter
@@ -474,11 +474,11 @@ class TestBase:
         testobj.update_blacklistfile = mock_update
         testobj.configure_filter()
         assert capsys.readouterr().out == (
-                f"called gui.show_dialog with args ({testee.gui.FilterOptions},)\n")
+                f"called gui.show_dialog with args ({testee.gui.FilterOptions}, {testobj.gui})\n")
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_2)
         testobj.configure_filter()
         assert capsys.readouterr().out == (
-                f"called gui.show_dialog with args ({testee.gui.FilterOptions},)\n"
+                f"called gui.show_dialog with args ({testee.gui.FilterOptions}, {testobj.gui})\n"
                 "called Base.update_blacklistfile\n")
 
     def test_get_output_filename(self, monkeypatch, capsys):
