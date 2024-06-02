@@ -189,11 +189,11 @@ called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLay
 called HBox.__init__
 called Editor.__init__ with args ({testobj},)
 called Font.__init__
-called Editor.setFamily
-called Editor.setFixedPitch
-called Editor.setPointSize
+called Font.setFamily
+called Font.setFixedPitch
+called Font.setPointSize
 called Editor.setCurrentFont
-called Editor.setReadOnly with value `True`
+called Editor.setReadOnly with arg `True`
 called ComboBox.currentText
 called Editor.setText with arg `abcd`
 called Signal.connect with args ({testobj.populate_list},)
