@@ -5,9 +5,11 @@ unittests
 main = test_main.py
 qtgui = test_qtgui.py
 exec = test_exec.py
+script = test_lint_core.py
 
 [testees]
 main = app/main.py
 qtgui = app/qtgui.py
 exec = app/exec.py
+script = lint_core.py
 
