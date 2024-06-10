@@ -367,36 +367,23 @@ class Base:
         if not is_checked:
             return mld
         repo_loc = pathlib.Path(path).expanduser().resolve()
-        test1 = repo_loc / '.hg'
-        test2 = repo_loc / '.git'
         if repo_loc.stem in DO_NOT_LINT:
             mld = 'De opgegeven repository is aangemerkt als do-not-lint'
-        elif test1.exists():
-            command = ['hg', 'manifest']
-            cwd = test1
-        elif test2.exists():
+        elif (repo_loc / '.git').exists():
             command = ['git', 'ls-files']
             cwd = test2
+        elif (repo_loc / '.hg').exists():
+            command = ['hg', 'manifest']
+            cwd = test1
         else:
             mld = 'De opgegeven directory is geen (hg of git) repository'
         if command and not mld:
             result = subprocess.run(command, cwd=str(cwd), stdout=subprocess.PIPE, check=False).stdout
             self.p['pad'] = ''
-            # self.p['filelist'] = [str(repo_loc / name)
-            #                       for name in str(result, encoding='utf-8').split('\n')
-            #                       if name]  # is dit een zinnige toevoeging?
-            self.p['filelist'] = []
+            # self.p['filelist'] = []
             filelist = [repo_loc / name for name in str(result, encoding='utf-8').split('\n')
                         if name]  # is dit een zinnige toevoeging?
-            for path in filelist:
-                if path.is_symlink():
-                    continue
-                if path.suffix in ('.py', '.pyw'):  # python source files
-                    self.p['filelist'].append(str(path))
-                elif path.suffix == '':  # check shebang
-                    filestart = path.read_text().split('\n')[0]
-                    if filestart.startswith('#!') and 'python' in filestart:
-                        self.p['filelist'].append(str(path))
+            self.p["filelist"] = [x for x in filelist if is_lintable(x)]
         return mld
 
     def configure_quiet(self):
@@ -509,3 +496,15 @@ def get_paths_from_file(fname):
                     line = line[:-1]
                 self.hier = pathlib.Path(line).resolve().parent
             self.fnames.append(line)
+
+
+def is_lintable(path):
+    "return filename if file can be linted, else empty string"
+    if not path.is_symlink():
+        if path.suffix in ('.py', '.pyw'):  # python source files
+            return str(path)
+        if path.suffix == '':  # check shebang
+            filestart = path.read_text().split('\n')[0]
+            if filestart.startswith('#!') and 'python' in filestart:
+                return str(path)
+    return ''
