@@ -636,7 +636,7 @@ class MainGui(qtw.QWidget):
         """
         test = group.checkedButton() or None
         if test:
-            test = test.text()
+            test = test.text().replace('&', '').lower()
         return test
 
     def meld_fout(self, mld):

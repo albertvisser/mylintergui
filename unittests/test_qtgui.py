@@ -809,8 +809,8 @@ class TestMainGui:
     def test_get_radiogroup_checked(self, monkeypatch, capsys):
         """unittest for MainGui.get_radiogroup_checked
         """
-        button = mockqtw.MockRadioButton('xxx')
-        assert capsys.readouterr().out == ("called RadioButton.__init__ with args ('xxx',) {}\n")
+        button = mockqtw.MockRadioButton('x&Xx')
+        assert capsys.readouterr().out == ("called RadioButton.__init__ with args ('x&Xx',) {}\n")
         def mock_checked():
             print('called ButtonGroup.checkedButton')
             return button
@@ -889,7 +889,7 @@ class TestMainGui:
         testobj.master.do_checks = MockFinder()
         testobj.execute_action()
         assert capsys.readouterr().out == (
-                f"called Cursor with arg {testee.core.Qt.WaitCursor}\n"
+                f"called Cursor.__init__ with arg {testee.core.Qt.WaitCursor}\n"
                 "called Application.setOverrideCursor with arg of type"
                 " <class 'mockgui.mockqtwidgets.MockCursor'>\n"
                 "called Finder.do_action\n"

@@ -79,9 +79,13 @@ class TestBase:
             print('called Base.build_blacklist')
         def mock_set_mode(self, *args):
             print('called Base.set_mode with args', args)
+            return 'xxx'
+        def mock_set_parameters(self, *args):
+            print('called Base.set_parameters with args', args)
         monkeypatch.setattr(testee.Base, 'get_editor_option', mock_get_option)
         monkeypatch.setattr(testee.Base, 'build_blacklist', mock_blacklist)
         monkeypatch.setattr(testee.Base, 'set_mode', mock_set_mode)
+        monkeypatch.setattr(testee.Base, 'set_parameters', mock_set_parameters)
         monkeypatch.setattr(testee.gui, 'MainGui', MockMainGui)
         testobj = testee.Base({'args': 'dict'})
         assert testobj.title == "Albert's linter GUI frontend"
@@ -107,6 +111,7 @@ class TestBase:
                 "called Base.get_editor_option\n"
                 "called Base.build_blacklist\n"
                 "called Base.set_mode with args ({'args': 'dict'},)\n"
+                "called Base.set_parameters with args ('xxx',)\n"
                 f"called MainGui.__init__ with args () {{'master': {testobj}}}\n"
                 "called MainGui.setup_screen\n")
 
@@ -513,22 +518,22 @@ class TestBase:
             print('called MainGui.get_radiogroup_checked with args', args)
             counter += 1
             if counter == 1:
-                return 'x&xx'
+                return 'xxx'
             return ''
         def mock_check_3(*args):
             nonlocal counter
             print('called MainGui.get_radiogroup_checked with args', args)
             counter += 1
             if counter == 1:
-                return 'x&xx'
-            return '&Default'
+                return 'xxx'
+            return 'default'
         def mock_check_4(*args):
             nonlocal counter
             print('called MainGui.get_radiogroup_checked with args', args)
             counter += 1
             if counter == 1:
-                return 'X&xx'
-            return 'yyyy'
+                return 'xxx'
+            return 'yyy'
         def mock_run(*args):
             print('called subprocess.run with args', args)
         monkeypatch.setattr(testee, 'checktypes', {'yyy': {'xxx': ['qq', 'rr=ss']}})

@@ -212,11 +212,9 @@ class Base:
 
     def doe(self):
         """Zoekactie uitvoeren en resultaatscherm tonen"""
-        test = self.gui.get_radiogroup_checked(self.gui.check_options)
-        mld = self.check_type(test.replace('&', '').lower())
+        mld = self.check_type(self.gui.get_radiogroup_checked(self.gui.check_options))
         if not mld:
-            test = self.gui.get_radiogroup_checked(self.gui.linters) or '&'
-            mld = self.check_linter(test.replace('&', '').lower())
+            mld = self.check_linter(self.gui.get_radiogroup_checked(self.gui.linters) or '&')
         if not mld and self.mode == Mode.standard.value:
             mld = self.checkpath(self.gui.get_combobox_textvalue(self.gui.vraag_dir))
 
@@ -449,10 +447,10 @@ class Base:
         rekening houden met verschillende opbouw van de optie string:
         voor pylint is het ['name', 'value'], voor flake8 is het ['name=value']
         """
-        linter = self.gui.get_radiogroup_checked(self.gui.linters).replace('&', '').lower()
+        linter = self.gui.get_radiogroup_checked(self.gui.linters)
         if not linter:
             return
-        test = self.gui.get_radiogroup_checked(self.gui.check_options)[1:].lower()
+        test = self.gui.get_radiogroup_checked(self.gui.check_options)
         if not test or test == 'default':
             return
         fnaam = checktypes[test][linter][-1].split('=')[-1]
