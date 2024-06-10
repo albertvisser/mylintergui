@@ -40,28 +40,6 @@ HERE = pathlib.Path(__file__).parent
 iconame = str(HERE / "lintergui.png")
 
 
-def get_iniloc(path=None):
-    """get location for ini file
-
-    Note: pathlib.Path returns the same path when path is already a path object
-    """
-    path = pathlib.Path(path) if path else pathlib.Path.cwd()
-    if path == pathlib.Path.home():
-        here = '~'
-    else:
-        path = path.resolve()
-        try:
-            here = '~' + str(path.relative_to(pathlib.Path.home()))
-        except ValueError:
-            here = str(path)
-    if here.startswith('/'):
-        here = here[1:]
-    iniloc = BASE / here.replace('/', '_')
-    mrufile = iniloc / 'mru_items.json'
-    optsfile = iniloc / 'options.json'
-    return iniloc, mrufile, optsfile
-
-
 class Base:
     """Applicatielogica klasse voor de linter applicatie
     Gebruikt (qt_)gui voor de user interface en exec voor de uitvoering van het linten
@@ -95,7 +73,7 @@ class Base:
         self.fnames = []
         self.get_editor_option()
         self.build_blacklist()
-        self.set_mode(args)
+        self.set_parameters(self.set_mode(args))
         self.gui = gui.MainGui(master=self)
         self.gui.setup_screen()
 
@@ -122,7 +100,11 @@ class Base:
         else:
             self.mode = Mode.standard.value
             inp = ''
+        return inp
 
+    def set_parameters(self, inp):
+        """determine where to read linting paramaters from depending on execution mode
+        """
         if self.mode == Mode.standard.value:
             if inp:
                 inp = pathlib.Path(inp).expanduser().resolve()
@@ -141,18 +123,11 @@ class Base:
         elif self.mode == Mode.multi.value:  # data is file met namen om te verwerken
             self.title += " - file list version"
             if len(inp) == 1:
-                with open(inp[0]) as f_in:
-                    try:
-                        for line in f_in:
-                            line = line.strip()
-                            if not self.hier:
-                                if line.endswith(("\\", "/")):
-                                    line = line[:-1]
-                                self.hier = pathlib.Path(line).resolve().parent
-                            self.fnames.append(line)
-                    except FileNotFoundError:
-                        raise ValueError('Input name is not a usable file for multi '
-                                         'mode: should contain (only) path names') from None
+                try:
+                    self.fnames = get_paths_from_file(inp[0])
+                except FileNotFoundError:
+                    raise ValueError('Input name is not a usable file for multi '
+                                     'mode: should contain (only) path names') from None
             elif inp:
                 self.fnames = inp
             else:
@@ -246,14 +221,14 @@ class Base:
             mld = self.checkpath(self.gui.get_combobox_textvalue(self.gui.vraag_dir))
 
         if not mld and self.mode == Mode.standard.value:  # and self.vraag_repo.isChecked():
-                mld = self.checkrepo(self.gui.get_checkbox_value(self.gui.vraag_repo),
-                                     self.gui.get_combobox_textvalue(self.gui.vraag_dir))
+            mld = self.checkrepo(self.gui.get_checkbox_value(self.gui.vraag_repo),
+                                 self.gui.get_combobox_textvalue(self.gui.vraag_dir))
         if not mld and (self.mode != Mode.single.value or os.path.isdir(self.fnames[0])):
-                self.checksubs(self.gui.get_checkbox_value(self.gui.vraag_subs),
-                               self.gui.get_checkbox_value(self.gui.vraag_links),
-                               self.gui.get_spinbox_value(self.gui.vraag_diepte))
+            self.checksubs(self.gui.get_checkbox_value(self.gui.vraag_subs),
+                           self.gui.get_checkbox_value(self.gui.vraag_links),
+                           self.gui.get_spinbox_value(self.gui.vraag_diepte))
         if not mld and (self.mode == Mode.single.value and os.path.islink(self.fnames[0])):
-                self.p["follow_symlinks"] = True
+            self.p["follow_symlinks"] = True
         if not mld and self.gui.get_checkbox_value(self.gui.vraag_quiet):
             mld = self.check_quiet_options()
         if mld:
@@ -502,3 +477,37 @@ class Base:
         else:
             test = self.p["pad"] + os.sep
         return test
+
+
+def get_iniloc(path=None):
+    """get location for ini file
+
+    Note: pathlib.Path returns the same path when path is already a path object
+    """
+    path = pathlib.Path(path) if path else pathlib.Path.cwd()
+    if path == pathlib.Path.home():
+        here = '~'
+    else:
+        path = path.resolve()
+        try:
+            here = '~' + str(path.relative_to(pathlib.Path.home()))
+        except ValueError:
+            here = str(path)
+    if here.startswith('/'):
+        here = here[1:]
+    iniloc = BASE / here.replace('/', '_')
+    mrufile = iniloc / 'mru_items.json'
+    optsfile = iniloc / 'options.json'
+    return iniloc, mrufile, optsfile
+
+
+def get_paths_from_file(fname):
+    "read input from a file containing filenames"
+    with open(fname) as f_in:
+        for line in f_in:
+            line = line.strip()
+            if not self.hier:
+                if line.endswith(("\\", "/")):
+                    line = line[:-1]
+                self.hier = pathlib.Path(line).resolve().parent
+            self.fnames.append(line)
