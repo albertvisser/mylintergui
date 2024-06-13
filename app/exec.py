@@ -65,8 +65,10 @@ class Linter:
         """get files from repo manifest
         also apply blacklisted names
         """
-        self.filenames = []
+        # self.dirnames = set()
+        # self.filenames = []
         for entry in self.p['filelist']:
+            print(entry)
             hlp = pathlib.Path(entry)
             if hlp.name in self.p['blacklist']['exclude_files']:
             # if os.path.basename(entry) in self.p['blacklist']['exclude_files']:
@@ -75,6 +77,7 @@ class Linter:
             # test = os.path.splitext(entry)[1].lstrip('.')
             if test not in self.p['blacklist']['include_exts']:
                 continue
+            self.dirnames.add(str(hlp.parent))
             self.filenames.append(entry)
 
     def subdirs(self, pad, level=0):
