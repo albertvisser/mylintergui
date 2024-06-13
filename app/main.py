@@ -209,7 +209,7 @@ class Base:
         """Zoekactie uitvoeren en resultaatscherm tonen"""
         mld = self.check_type(self.gui.get_radiogroup_checked(self.gui.check_options))
         if not mld:
-            mld = self.check_linter(self.gui.get_radiogroup_checked(self.gui.linters) or '&')
+            mld = self.check_linter(self.gui.get_radiogroup_checked(self.gui.linters))
         if not mld and self.mode == Mode.standard.value:
             mld = self.checkpath(self.gui.get_combobox_textvalue(self.gui.vraag_dir))
 
