@@ -51,7 +51,7 @@ class Base:
         self.iconame = iconame
         self.fouttitel = self.title + "- fout"
         self.resulttitel = self.title + " - Resultaten"
-        self.hier = ""
+        self.common_part = ""
         self._mru_items = {}
         self.s = ''
         self.p = {}
@@ -72,10 +72,36 @@ class Base:
             self.p[key] = False
         self.fnames = []
         self.get_editor_option()
-        self.build_blacklist()
+        self.build_blacklist_if_needed()
         self.set_parameters(self.set_mode(args))
         self.gui = gui.MainGui(master=self)
         self.gui.setup_screen()
+
+    def get_editor_option(self):
+        """determine which editor to use and how
+        """
+        try:
+            test = edfile.read_text()
+        except FileNotFoundError:
+            test = initial_edfile
+            edfile.write_text(test)
+        # print(test)
+        self.editor_option = [x.split(' = ')[1].strip("'") for x in test.split('\n') if x]
+        if self.editor_option[0].startswith('['):
+            command_list = [x[1:-1] for x in self.editor_option[0][1:-1].split(', ')]
+            self.editor_option[0] = command_list
+        else:
+            self.editor_option[0] = [self.editor_option[0]]
+
+    def build_blacklist_if_needed(self):
+        """(re)write blacklist
+        """
+        try:
+            with blacklist.open() as _blf:
+                self.blacklist = json.load(_blf)
+        except FileNotFoundError:
+            self.blacklist = initial_blacklist
+            self.update_blacklistfile()
 
     def set_mode(self, args):
         """determine execution mode
@@ -108,39 +134,34 @@ class Base:
         if self.mode == Mode.standard.value:
             if inp:
                 inp = pathlib.Path(inp).expanduser().resolve()
-                self.fnames = [str(inp)]
+                self.p['filelist'] = [str(inp)]
                 self.readini(inp)
             else:
+                self.p['filelist'] = []
                 self.readini()
         elif self.mode == Mode.single.value:  # data is file om te verwerken
             self.title += " - single file version"
             if not inp:
                 raise ValueError('Need filename for application type "single"')
             inp = pathlib.Path(inp).resolve()
+            self.p['filelist'] = [str(inp)]
             self.fnames = [str(inp)]
-            self.hier = inp.parent
-            self.readini(self.hier)
+            self.readini(inp.parent)
         elif self.mode == Mode.multi.value:  # data is file met namen om te verwerken
             self.title += " - file list version"
             if len(inp) == 1:
-                try:
-                    self.fnames = get_paths_from_file(inp[0])
-                except FileNotFoundError:
+                self.fnames = get_paths_from_file(inp[0])
+                if not self.fnames:
                     raise ValueError('Input name is not a usable file for multi '
-                                     'mode: should contain (only) path names') from None
+                                     'mode: should contain (only) path names')
             elif inp:
                 self.fnames = inp
             else:
                 raise ValueError('Need filename or list of files for application type "multi"')
-            self.readini(os.path.commonpath(self.fnames))
+            self.common_part = os.path.commonpath(self.fnames)
+            self.readini(self.common_part)
         else:
             raise ValueError('Execution mode could not be determined from input')
-
-        if len(self.fnames) > 0:
-            self.p["filelist"] = self.fnames
-        for ix, name in enumerate(self.fnames):
-            if name.endswith(("\\", "/")):
-                self.fnames[ix] = name[:-1]
 
     def readini(self, path=None):
         """lees ini file (met eerder gebruikte zoekinstellingen)
@@ -178,32 +199,6 @@ class Base:
         with ofile.open("w") as _out:
             json.dump(opts, _out, indent=4)
 
-    def get_editor_option(self):
-        """determine which editor to use and how
-        """
-        try:
-            test = edfile.read_text()
-        except FileNotFoundError:
-            test = initial_edfile
-            edfile.write_text(test)
-        # print(test)
-        self.editor_option = [x.split(' = ')[1].strip("'") for x in test.split('\n') if x]
-        if self.editor_option[0].startswith('['):
-            command_list = [x[1:-1] for x in self.editor_option[0][1:-1].split(', ')]
-            self.editor_option[0] = command_list
-        else:
-            self.editor_option[0] = [self.editor_option[0]]
-
-    def build_blacklist(self):
-        """(re)write blacklist
-        """
-        try:
-            with blacklist.open() as _blf:
-                self.blacklist = json.load(_blf)
-        except FileNotFoundError:
-            self.blacklist = initial_blacklist
-            self.update_blacklistfile()
-
     def update_blacklistfile(self):
         """write back changed blacklist entries
         """
@@ -221,11 +216,11 @@ class Base:
         if not mld and self.mode == Mode.standard.value:  # and self.vraag_repo.isChecked():
             mld = self.checkrepo(self.gui.get_checkbox_value(self.gui.vraag_repo),
                                  self.gui.get_combobox_textvalue(self.gui.vraag_dir))
-        if not mld and (self.mode != Mode.single.value or os.path.isdir(self.fnames[0])):
+        if not mld and (self.mode != Mode.single.value or os.path.isdir(self.p['filelist'][0])):
             self.checksubs(self.gui.get_checkbox_value(self.gui.vraag_subs),
                            self.gui.get_checkbox_value(self.gui.vraag_links),
                            self.gui.get_spinbox_value(self.gui.vraag_diepte))
-        if not mld and (self.mode == Mode.single.value and os.path.islink(self.fnames[0])):
+        if not mld and (self.mode == Mode.single.value and os.path.islink(self.p['filelist'][0])):
             self.p["follow_symlinks"] = True
         if not mld and self.gui.get_checkbox_value(self.gui.vraag_quiet):
             mld = self.check_quiet_options()
@@ -246,45 +241,16 @@ class Base:
             self.gui.meld_info("Geen bestanden gevonden")
             return
 
-        common_part = self.determine_common()
-        if not (self.mode == Mode.single.value or (len(self.fnames) == 1
-                                                   and os.path.isfile(self.fnames[0]))):
-            skip_dirs = self.gui.get_checkbox_value(self.gui.ask_skipdirs)
-            skip_files = self.gui.get_checkbox_value(self.gui.ask_skipfiles)
-
-            go_on = skip_dirs or skip_files
-            canceled = False
-            while go_on:
-                if skip_dirs:
-                    # eerste ronde: toon directories
-                    if self.do_checks.dirnames:
-                        self.names = sorted(self.do_checks.dirnames)
-                        canceled = not gui.show_dialog(gui.SelectNames, files=False)
-                        if canceled:
-                            break
-                        # tweede ronde: toon de files die overblijven
-                        fnames = self.do_checks.filenames[:]
-                        for fname in fnames:
-                            for name in self.names:
-                                if fname.startswith(name + '/'):
-                                    self.do_checks.filenames.remove(fname)
-                                    break
-                        if not self.gui.get_checkbox_value(self.gui.ask_skipfiles):
-                            go_on = False
-                if self.gui.get_checkbox_value(self.gui.ask_skipfiles):
-                    self.names = sorted(self.do_checks.filenames)
-                    canceled = not gui.show_dialog(gui.SelectNames)
-                    if canceled and not self.gui.get_checkbox_value(self.gui.ask_skipdirs):
-                        # canceled = True
-                        break
-                    if not canceled:
-                        self.do_checks.filenames = self.names
-                        go_on = False
+        # common_part = self.determine_common()
+        # if not (self.mode == Mode.single.value or (len(self.fnames) == 1
+        #                                            and os.path.isfile(self.fnames[0]))):
+        if len(self.p['filelist']) > 1 or os.path.isdir(self.p['filelist'][0]):
+            canceled = self.determine_items_to_skip()
             if canceled:
                 return
 
         self.gui.execute_action()
-        gui.Results(self.gui, common_part)
+        gui.Results(self.gui, self.common_part)
 
     def check_loc(self, txt):
         """update location to get settings from
@@ -332,8 +298,7 @@ class Base:
                     self._mru_items["dirs"].remove(test)
                 self._mru_items["dirs"].insert(0, test)
                 self.s += f"\nin {test}"
-                self.p["pad"] = test
-                self.p['filelist'] = ''
+                self.p['filelist'] = [test]
         return mld
 
     def checksubs(self, *items):
@@ -363,27 +328,26 @@ class Base:
         """check setting for "only do tracked files"
         """
         self.p['fromrepo'] = is_checked
-        command = mld = ''
         if not is_checked:
-            return mld
+            return ''
+        command = mld = ''
         repo_loc = pathlib.Path(path).expanduser().resolve()
         if repo_loc.stem in DO_NOT_LINT:
             mld = 'De opgegeven repository is aangemerkt als do-not-lint'
         elif (repo_loc / '.git').exists():
             command = ['git', 'ls-files']
-            cwd = test2
         elif (repo_loc / '.hg').exists():
             command = ['hg', 'manifest']
-            cwd = test1
         else:
             mld = 'De opgegeven directory is geen (hg of git) repository'
         if command and not mld:
-            result = subprocess.run(command, cwd=str(cwd), stdout=subprocess.PIPE, check=False).stdout
-            self.p['pad'] = ''
+            result = subprocess.run(command, cwd=str(repo_loc), stdout=subprocess.PIPE,
+                                    check=False).stdout
+            # self.p['pad'] = ''
             # self.p['filelist'] = []
             filelist = [repo_loc / name for name in str(result, encoding='utf-8').split('\n')
                         if name]  # is dit een zinnige toevoeging?
-            self.p["filelist"] = [x for x in filelist if is_lintable(x)]
+            self.p["filelist"] = [str(x) for x in filelist if is_lintable(x)]
         return mld
 
     def configure_quiet(self):
@@ -463,6 +427,51 @@ class Base:
             test = self.p["pad"] + os.sep
         return test
 
+    def determine_items_to_skip(self):
+        """remove entries from Linter.dirnames and/or Linter.filenames if requested
+        """
+        if not all((self.do_checks.dirnames, self.do_checks.filenames)):
+            return False  # failsafe; kan eigenlijk niet (meer)
+        skip_dirs = self.gui.get_checkbox_value(self.gui.ask_skipdirs)
+        skip_files = self.gui.get_checkbox_value(self.gui.ask_skipfiles)
+
+        go_on = skip_dirs or skip_files
+        canceled = False
+        while go_on:
+            # eerste ronde: toon directories
+            # print(self.do_checks.dirnames)
+            if skip_dirs:
+                self.names = sorted(self.do_checks.dirnames)
+                canceled = not gui.show_dialog(gui.SelectNames, self.gui, files=False)
+                if canceled:
+                    break
+                self.remove_files_in_selected_dirs()
+                if not skip_files:
+                    go_on = False
+            # tweede ronde: toon de files die overblijven
+            if skip_files:
+                # print(self.do_checks.filenames)
+                self.names = sorted(self.do_checks.filenames)
+                # print(self.names)
+                canceled = not gui.show_dialog(gui.SelectNames, self.gui)
+                if canceled and not skip_dirs:
+                    go_on = False
+                    break
+                if not canceled:
+                    self.do_checks.filenames = self.names
+                    go_on = False
+        return canceled
+
+    def remove_files_in_selected_dirs(self):
+        """truncate list of filenames based on changes in list of dirnames
+        """
+        fnames = self.do_checks.filenames[:]
+        for fname in fnames:
+            for name in self.names:
+                if fname.startswith(name + '/'):
+                    self.do_checks.filenames.remove(fname)
+                    break
+
 
 def get_iniloc(path=None):
     """get location for ini file
@@ -488,23 +497,25 @@ def get_iniloc(path=None):
 
 def get_paths_from_file(fname):
     "read input from a file containing filenames"
+    result = []
     with open(fname) as f_in:
         for line in f_in:
             line = line.strip()
-            if not self.hier:
-                if line.endswith(("\\", "/")):
-                    line = line[:-1]
-                self.hier = pathlib.Path(line).resolve().parent
-            self.fnames.append(line)
+            if line.endswith(("\\", "/")):
+                line = line[:-1]
+            if not pathlib.Path(line).resolve().exists():
+                return []
+            result.append(line)
+    return result
 
 
 def is_lintable(path):
     "return filename if file can be linted, else empty string"
     if not path.is_symlink():
         if path.suffix in ('.py', '.pyw'):  # python source files
-            return str(path)
+            return True  # str(path)
         if path.suffix == '':  # check shebang
             filestart = path.read_text().split('\n')[0]
             if filestart.startswith('#!') and 'python' in filestart:
-                return str(path)
-    return ''
+                return True  # str(path)
+    return False  # ''
