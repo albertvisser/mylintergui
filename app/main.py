@@ -481,7 +481,7 @@ def get_paths_from_file(fname):
             line = line.strip()
             if line.endswith(("\\", "/")):
                 line = line[:-1]
-            if not pathlib.Path(line).resolve().exists():
+            if not pathlib.Path(line).absolute().exists(follow_symlinks=False):
                 return []
             result.append(line)
     return result
