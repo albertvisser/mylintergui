@@ -152,8 +152,8 @@ class Base:
             if len(inp) == 1:
                 self.fnames = get_paths_from_file(inp[0])
                 if not self.fnames:
-                    raise ValueError('Input name is not a usable file for multi '
-                                     'mode: should contain (only) path names')
+                    raise ValueError('Input is not a usable file for multi mode:'
+                                     ' should contain (only) path names')
             elif inp:
                 self.fnames = inp
             else:

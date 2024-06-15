@@ -1,6 +1,7 @@
 """unitt'ests for ./app/main.py
 """
 import types
+import pytest
 from app import main as testee
 
 
@@ -35,7 +36,7 @@ def test_get_iniloc():
                                                                    path / optfile)
     path = basepath / 'test'
     assert testee.get_iniloc(str(testee.pathlib.Path('/test'))) == (path, path / mrufile,
-                                                                   path / optfile)
+                                                                    path / optfile)
 
 
 def test_get_paths_from_file(tmp_path):
@@ -132,9 +133,11 @@ class MockMainGui:
     "stub for gui.MainGui"
     def __init__(self, *args, **kwargs):
         print('called MainGui.__init__ with args', args, kwargs)
+
     def setup_screen(self):
         "stub"
         print('called MainGui.setup_screen')
+
     def set_checkbox_value(self, *args):
         "stub"
         print('called MainGui.set_checkbox_value with args', args)
@@ -199,12 +202,12 @@ class TestBase:
         assert testobj._optkeys == ("subdirs", "fromrepo")
         assert testobj.fnames == []
         assert capsys.readouterr().out == (
-                "called Base.get_editor_option\n"
-                "called Base.build_blacklist_if_needed\n"
-                "called Base.set_mode with args ({'args': 'dict'},)\n"
-                "called Base.set_parameters with args ('xxx',)\n"
-                f"called MainGui.__init__ with args () {{'master': {testobj}}}\n"
-                "called MainGui.setup_screen\n")
+            "called Base.get_editor_option\n"
+            "called Base.build_blacklist_if_needed\n"
+            "called Base.set_mode with args ({'args': 'dict'},)\n"
+            "called Base.set_parameters with args ('xxx',)\n"
+            f"called MainGui.__init__ with args () {{'master': {testobj}}}\n"
+            "called MainGui.setup_screen\n")
 
     def test_set_mode(self, monkeypatch, capsys):
         """unittest for Base.set_mode
@@ -253,12 +256,66 @@ class TestBase:
         assert not testobj.repo_only
         assert capsys.readouterr().out == ""
 
-    def _test_set_parameters(self, monkeypatch, capsys):
+    def test_set_parameters(self, monkeypatch, capsys):
         """unittest for Base.set_parameters
         """
+        def mock_readini(*args):
+            print('called Base.readini with args', args)
+        def mock_expand(arg):
+            print('called path.expanduser with arg', arg)
+            return arg
+        def mock_resolve(arg):
+            print('called path.resolve with arg', arg)
+            return arg
+        def mock_get(arg):
+            print('called testee.get_paths_from_file with arg', arg)
+            return ['xxx', 'yyy']
+        def mock_get_2(arg):
+            print('called testee.get_paths_from_file with arg', arg)
+            return []
+        monkeypatch.setattr(testee.pathlib.Path, 'expanduser', mock_expand)
+        monkeypatch.setattr(testee.pathlib.Path, 'resolve', mock_resolve)
+        monkeypatch.setattr(testee, 'get_paths_from_file', mock_get)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.set_parameters('args') == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.readini = mock_readini
+        testobj.mode = testee.Mode.standard.value
+        testobj.title = 'aaa'
+        testobj.p = {}
+        testobj.set_parameters('pathname')
+        assert capsys.readouterr().out == (
+            "called path.expanduser with arg pathname\n"
+            "called path.resolve with arg pathname\n"
+            "called Base.readini with args (PosixPath('pathname'),)\n")
+        testobj.set_parameters('')
+        assert capsys.readouterr().out == "called Base.readini with args ()\n"
+        testobj.mode = testee.Mode.single.value
+        testobj.set_parameters('pathname')
+        assert capsys.readouterr().out == ("called path.resolve with arg pathname\n"
+                                           "called Base.readini with args (PosixPath('.'),)\n")
+        with pytest.raises(ValueError) as exc:
+            testobj.set_parameters('')
+        assert str(exc.value) == 'Need filename for application type "single"'
+        testobj.mode = testee.Mode.multi.value
+        testobj.set_parameters(['pathname'])
+        assert capsys.readouterr().out == ("called testee.get_paths_from_file with arg pathname\n"
+                                           "called Base.readini with args ('',)\n")
+        monkeypatch.setattr(testee, 'get_paths_from_file', mock_get_2)
+        with pytest.raises(ValueError) as exc:
+            testobj.set_parameters(['pathname'])
+        assert str(exc.value) == (
+            'Input is not a usable file for multi mode: should contain (only) path names')
+        testobj.set_parameters(['path/name1', 'path/name2'])
+        assert capsys.readouterr().out == (
+                "called testee.get_paths_from_file with arg pathname\n"
+                "called Base.readini with args ('path',)\n")
+        with pytest.raises(ValueError) as exc:
+            testobj.set_parameters([])
+        assert str(exc.value) == (
+            'Need filename or list of files for application type "multi"')
+        testobj.mode = 'x'
+        with pytest.raises(ValueError) as exc:
+            testobj.set_parameters([])
+        assert str(exc.value) == 'Execution mode could not be determined from input'
 
     def test_readini(self, monkeypatch, capsys, tmp_path):
         """unittest for Base.readini
@@ -382,9 +439,9 @@ class TestBase:
         testobj.get_editor_option()
         assert testobj.editor_option == [['SciTE'], '-open:{}', '-goto:{}']
         assert capsys.readouterr().out == (
-                f"called path.read with arg '{mock_edfile}'\n"
-                f"called path.write with arg '{mock_edfile}',"
-                " 'program = 'SciTE'\nfile-option = '-open:{}'\nline-option = '-goto:{}''\n")
+            f"called path.read with arg '{mock_edfile}'\n"
+            f"called path.write with arg '{mock_edfile}',"
+            " 'program = 'SciTE'\nfile-option = '-open:{}'\nline-option = '-goto:{}''\n")
         monkeypatch.setattr(testee.pathlib.Path, 'read_text', mock_read_2)
         testobj.get_editor_option()
         assert testobj.editor_option == [['x', 'x', 'x'], 'yyy', 'zzz']
@@ -441,15 +498,342 @@ class TestBase:
         testobj.blacklist = 'blacklistdata'
         testobj.update_blacklistfile()
         assert capsys.readouterr().out == (
-                "called path.open with arg 'blacklistfile' 'w'\n"
-                f"called json.dump with args 'blacklistdata' '{blacklistfile}' {{'indent': 4}}\n")
+            "called path.open with arg 'blacklistfile' 'w'\n"
+            f"called json.dump with args 'blacklistdata' '{blacklistfile}' {{'indent': 4}}\n")
 
-    def _test_doe(self, monkeypatch, capsys):
+    def test_doe(self, monkeypatch, capsys, tmp_path):
         """unittest for Base.doe
         """
+        def mock_check_radio(*args):
+            print('called Gui.get_radiogroup_checked with args', args)
+            return 'radiobutton'
+        def mock_check_combo(*args):
+            print('called Gui.get_combobox_textvalue with args', args)
+            return 'combobox'
+        def mock_check_check(*args):
+            print('called Gui.get_checkbox_value with args', args)
+            return 'checkbox'
+        def mock_check_check_2(*args):
+            print('called Gui.get_checkbox_value with args', args)
+            return False
+        def mock_check_spin(*args):
+            print('called Gui.get_spinbox_value with args', args)
+            return 'spinbox'
+        def mock_meld_fout(*args):
+            print('called Gui.meld_fout with args', args)
+        def mock_meld_info(*args):
+            print('called Gui.meld_info with args', args)
+        def mock_check_type(*args):
+            print('called Base.check_type with args', args)
+            return 'check_type failed'
+        def mock_check_type_2(*args):
+            print('called Base.check_type with args', args)
+            return ''
+        def mock_check_linter(*args):
+            print('called Base.check_linter with args', args)
+            return 'check_linter failed'
+        def mock_check_linter_2(*args):
+            print('called Base.check_linter with args', args)
+            return ''
+        def mock_checkpath(*args):
+            print('called Base.checkpath with args', args)
+            return 'checkpath failed'
+        def mock_checkpath_2(*args):
+            print('called Base.checkpath with args', args)
+            return ''
+        def mock_checkrepo(*args):
+            print('called Base.checkrepo with args', args)
+            return 'checkrepo failed'
+        def mock_checkrepo_2(*args):
+            print('called Base.checkrepo with args', args)
+            return ''
+        def mock_checksubs(*args):
+            print('called Base.checksubs with args', args)
+        def mock_check_quiet_options(*args):
+            print('called Base.check_quiet_options with args', args)
+            return 'check_quiet_options failed'
+        def mock_check_quiet_options_2(*args):
+            print('called Base.check_quiet_options with args', args)
+            return ''
+        def mock_schrijf(loc):
+            print(f"called Base.schrijfini with arg '{loc}'")
+        def mock_init(self, **p):
+            print('called Linter.__init__ with args', p)
+            self.ok = False
+            self.rpt = ["Something went", "wrong"]
+        def mock_init_2(self, **p):
+            print('called Linter.__init__ with args', p)
+            self.ok = True
+            self.filenames = []
+        def mock_init_3(self, **p):
+            print('called Linter.__init__ with args', p)
+            self.ok = True
+            self.filenames = [target]
+        def mock_determine():
+            print('called Base.mock_determine_items_to_skip')
+            return True
+        def mock_determine_2():
+            print('called Base.mock_determine_items_to_skip')
+            return False
+        def mock_execute():
+            print('called Gui.execute_action')
+        def mock_init_results(self, *args):
+            print('called Results.__init__ with args', args)
+
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.doe() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.p = {}
+        testobj.gui.get_radiogroup_checked = mock_check_radio
+        testobj.gui.get_combobox_textvalue = mock_check_combo
+        testobj.gui.get_checkbox_value = mock_check_check
+        testobj.gui.get_spinbox_value = mock_check_spin
+        testobj.gui.meld_fout = mock_meld_fout
+        testobj.gui.meld_info = mock_meld_info
+        testobj.gui.check_options = 'check-options'
+        testobj.gui.linters = 'linters'
+        testobj.gui.vraag_dir = 'dir'
+        testobj.gui.vraag_repo = 'repo'
+        testobj.gui.vraag_subs = 'subdirs'
+        testobj.gui.vraag_links = 'links'
+        testobj.gui.vraag_diepte = 'depth'
+        testobj.gui.vraag_quiet = 'quiet'
+        testobj.gui.execute_action = mock_execute
+        testobj.schrijfini = mock_schrijf
+        testobj.determine_items_to_skip = mock_determine
+        monkeypatch.setattr(testee.Linter, '__init__', mock_init)
+        monkeypatch.setattr(testee.gui.Results, '__init__', mock_init_results)
+
+        testobj.check_type = mock_check_type
+        testobj.doe()
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.meld_fout with args ('check_type failed',)\n")
+        testobj.check_type = mock_check_type_2
+        testobj.check_linter = mock_check_linter
+        testobj.doe()
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.meld_fout with args ('check_linter failed',)\n")
+        testobj.check_linter = mock_check_linter_2
+        testobj.checkpath = mock_checkpath
+        testobj.mode = testee.Mode.standard.value
+        testobj.doe()
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkpath with args ('combobox',)\n"
+            "called Gui.meld_fout with args ('checkpath failed',)\n")
+        testobj.checkpath = mock_checkpath_2
+        testobj.checkrepo = mock_checkrepo
+        testobj.mode = testee.Mode.standard.value
+        testobj.doe()
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkpath with args ('combobox',)\n"
+            "called Gui.get_checkbox_value with args ('repo',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called Gui.meld_fout with args ('checkrepo failed',)\n")
+        testobj.checkrepo = mock_checkrepo_2
+        testobj.checksubs = mock_checksubs
+        testobj.check_quiet_options = mock_check_quiet_options
+        target = tmp_path / 'filename'
+        target.touch()
+        link = tmp_path / 'linkname'
+        link.symlink_to(target)
+        testobj.p['filelist'] = [link]
+        testobj.p['follow_symlinks'] = False
+        testobj.doe()
+        assert not testobj.p['follow_symlinks']
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkpath with args ('combobox',)\n"
+            "called Gui.get_checkbox_value with args ('repo',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called Gui.get_checkbox_value with args ('subdirs',)\n"
+            "called Gui.get_checkbox_value with args ('links',)\n"
+            "called Gui.get_spinbox_value with args ('depth',)\n"
+            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called Gui.get_checkbox_value with args ('quiet',)\n"
+            "called Base.check_quiet_options with args ()\n"
+            "called Gui.meld_fout with args ('check_quiet_options failed',)\n")
+        testobj.mode = testee.Mode.single.value
+        testobj.p['follow_symlinks'] = False
+        testobj.doe()
+        assert testobj.p['follow_symlinks']
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.get_checkbox_value with args ('quiet',)\n"
+            "called Base.check_quiet_options with args ()\n"
+            "called Gui.meld_fout with args ('check_quiet_options failed',)\n")
+        testobj.p['filelist'] = [tmp_path]  # gegearandeerd een directory
+        testobj.p['follow_symlinks'] = False
+        testobj.doe()
+        assert not testobj.p['follow_symlinks']
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.get_checkbox_value with args ('subdirs',)\n"
+            "called Gui.get_checkbox_value with args ('links',)\n"
+            "called Gui.get_spinbox_value with args ('depth',)\n"
+            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called Gui.get_checkbox_value with args ('quiet',)\n"
+            "called Base.check_quiet_options with args ()\n"
+            "called Gui.meld_fout with args ('check_quiet_options failed',)\n")
+
+        testobj.p['filelist'] = [target]
+        testobj.p['follow_symlinks'] = False
+        testobj.doe()
+        assert not testobj.p['follow_symlinks']
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.get_checkbox_value with args ('quiet',)\n"
+            "called Base.check_quiet_options with args ()\n"
+            "called Gui.meld_fout with args ('check_quiet_options failed',)\n")
+
+        testobj.check_quiet_options = mock_check_quiet_options_2
+        testobj.mode = testee.Mode.standard.value
+        testobj.p['follow_symlinks'] = False
+        testobj.skip_screen = False
+        testobj.blacklist = {'black': 'list'}
+        testobj.doe()
+        assert not testobj.p['follow_symlinks']
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkpath with args ('combobox',)\n"
+            "called Gui.get_checkbox_value with args ('repo',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called Gui.get_checkbox_value with args ('subdirs',)\n"
+            "called Gui.get_checkbox_value with args ('links',)\n"
+            "called Gui.get_spinbox_value with args ('depth',)\n"
+            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called Gui.get_checkbox_value with args ('quiet',)\n"
+            "called Base.check_quiet_options with args ()\n"
+            f"called Base.schrijfini with arg '{tmp_path}'\n"
+            f"called Linter.__init__ with args {{'filelist': [{target!r}],"
+            " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
+            "called Gui.meld_info with args ('Something went\\nwrong',)\n")
+        monkeypatch.setattr(testee.Linter, '__init__', mock_init_2)
+        testobj.doe()
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkpath with args ('combobox',)\n"
+            "called Gui.get_checkbox_value with args ('repo',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called Gui.get_checkbox_value with args ('subdirs',)\n"
+            "called Gui.get_checkbox_value with args ('links',)\n"
+            "called Gui.get_spinbox_value with args ('depth',)\n"
+            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called Gui.get_checkbox_value with args ('quiet',)\n"
+            "called Base.check_quiet_options with args ()\n"
+            f"called Base.schrijfini with arg '{tmp_path}'\n"
+            f"called Linter.__init__ with args {{'filelist': [{target!r}],"
+            " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
+            "called Gui.meld_info with args ('Geen bestanden gevonden',)\n")
+        monkeypatch.setattr(testee.Linter, '__init__', mock_init_3)
+        testobj.common_part = 'common part'
+        testobj.doe()
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkpath with args ('combobox',)\n"
+            "called Gui.get_checkbox_value with args ('repo',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called Gui.get_checkbox_value with args ('subdirs',)\n"
+            "called Gui.get_checkbox_value with args ('links',)\n"
+            "called Gui.get_spinbox_value with args ('depth',)\n"
+            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called Gui.get_checkbox_value with args ('quiet',)\n"
+            "called Base.check_quiet_options with args ()\n"
+            f"called Base.schrijfini with arg '{tmp_path}'\n"
+            f"called Linter.__init__ with args {{'filelist': [{target!r}],"
+            " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
+            "called Gui.execute_action\n"
+            f"called Results.__init__ with args ({testobj.gui}, 'common part')\n")
+        testobj.p['filelist'] = [tmp_path]
+        testobj.doe()
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkpath with args ('combobox',)\n"
+            "called Gui.get_checkbox_value with args ('repo',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called Gui.get_checkbox_value with args ('subdirs',)\n"
+            "called Gui.get_checkbox_value with args ('links',)\n"
+            "called Gui.get_spinbox_value with args ('depth',)\n"
+            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called Gui.get_checkbox_value with args ('quiet',)\n"
+            "called Base.check_quiet_options with args ()\n"
+            f"called Base.schrijfini with arg '{tmp_path.parent}'\n"
+            f"called Linter.__init__ with args {{'filelist': [{tmp_path!r}],"
+            " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
+            "called Base.mock_determine_items_to_skip\n")
+        testobj.p['filelist'] = [target, tmp_path]
+        testobj.gui.get_checkbox_value = mock_check_check_2
+        testobj.determine_items_to_skip = mock_determine_2
+        testobj.doe()
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkpath with args ('combobox',)\n"
+            "called Gui.get_checkbox_value with args ('repo',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkrepo with args (False, 'combobox')\n"
+            "called Gui.get_checkbox_value with args ('subdirs',)\n"
+            "called Gui.get_checkbox_value with args ('links',)\n"
+            "called Gui.get_spinbox_value with args ('depth',)\n"
+            "called Base.checksubs with args (False, False, 'spinbox')\n"
+            "called Gui.get_checkbox_value with args ('quiet',)\n"
+            f"called Base.schrijfini with arg '{target.parent}'\n"
+            f"called Linter.__init__ with args {{'filelist': [{target!r}, {tmp_path!r}],"
+            " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
+            "called Base.mock_determine_items_to_skip\n"
+            "called Gui.execute_action\n"
+            f"called Results.__init__ with args ({testobj.gui}, 'common part')\n")
 
     def test_check_loc(self, monkeypatch, capsys, tmp_path):
         """unittest for Base.check_loc
@@ -470,9 +854,9 @@ class TestBase:
         assert capsys.readouterr().out == ""
         testobj.check_loc(txt)
         assert capsys.readouterr().out == (
-                f"called Base.readini with arg {txt}\n"
-                "called MainGui.set_checkbox_value with args ('subs', 'x')\n"
-                "called MainGui.set_checkbox_value with args ('repo', 'y')\n")
+            f"called Base.readini with arg {txt}\n"
+            "called MainGui.set_checkbox_value with args ('subs', 'x')\n"
+            "called MainGui.set_checkbox_value with args ('repo', 'y')\n")
 
     def test_check_type(self, monkeypatch, capsys):
         """unittest for Base.check_type
@@ -581,14 +965,14 @@ class TestBase:
         assert capsys.readouterr().out == ""
 
         assert testobj.checkrepo(True, 'no') == (
-                "De opgegeven repository is aangemerkt als do-not-lint")
+            "De opgegeven repository is aangemerkt als do-not-lint")
         assert testobj.p["fromrepo"]
         assert capsys.readouterr().out == ""
 
         repoloc = tmp_path / 'repo'
         repoloc.mkdir()
         assert testobj.checkrepo(True, repoloc) == (
-                "De opgegeven directory is geen (hg of git) repository")
+            "De opgegeven directory is geen (hg of git) repository")
         assert testobj.p["fromrepo"]
         assert capsys.readouterr().out == ""
 
@@ -598,23 +982,22 @@ class TestBase:
         assert testobj.p["fromrepo"]
         assert testobj.p['filelist'] == [f"{repoloc / 'xxxx'}", f"{repoloc / 'zzzz'}"]
         assert capsys.readouterr().out == (
-                f"called subprocess.run with args (['hg', 'manifest'],) {{'cwd': '{repoloc}',"
-                " 'stdout': -1, 'check': False}\n"
-                f"called is_lintable with arg '{repoloc}/xxxx'\n"
-                f"called is_lintable with arg '{repoloc}/yyyy'\n"
-                f"called is_lintable with arg '{repoloc}/zzzz'\n")
-
+            f"called subprocess.run with args (['hg', 'manifest'],) {{'cwd': '{repoloc}',"
+            " 'stdout': -1, 'check': False}\n"
+            f"called is_lintable with arg '{repoloc}/xxxx'\n"
+            f"called is_lintable with arg '{repoloc}/yyyy'\n"
+            f"called is_lintable with arg '{repoloc}/zzzz'\n")
         testobj.p['filelist'] = []
         (repoloc / '.git').mkdir()
         assert testobj.checkrepo(True, repoloc) == ""
         assert testobj.p["fromrepo"]
         assert testobj.p['filelist'] == [f"{repoloc / 'xxxx'}", f"{repoloc / 'zzzz'}"]
         assert capsys.readouterr().out == (
-                f"called subprocess.run with args (['git', 'ls-files'],) {{'cwd': '{repoloc}',"
-                " 'stdout': -1, 'check': False}\n"
-                f"called is_lintable with arg '{repoloc}/xxxx'\n"
-                f"called is_lintable with arg '{repoloc}/yyyy'\n"
-                f"called is_lintable with arg '{repoloc}/zzzz'\n")
+            f"called subprocess.run with args (['git', 'ls-files'],) {{'cwd': '{repoloc}',"
+            " 'stdout': -1, 'check': False}\n"
+            f"called is_lintable with arg '{repoloc}/xxxx'\n"
+            f"called is_lintable with arg '{repoloc}/yyyy'\n"
+            f"called is_lintable with arg '{repoloc}/zzzz'\n")
 
     def test_configure_quiet(self, monkeypatch, capsys):
         """unittest for Base.configure_quiet
@@ -632,20 +1015,20 @@ class TestBase:
         testobj.configure_quiet()
         assert testobj.quiet_options == {}
         assert capsys.readouterr().out == (
-                f"called gui.show_dialog with args ({testee.gui.QuietOptions}, {testobj.gui})\n")
+            f"called gui.show_dialog with args ({testee.gui.QuietOptions}, {testobj.gui})\n")
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_2)
         testobj.gui.newquietoptions = {'single_file': False, 'fname': '', 'pattern': ''}
         testobj.configure_quiet()
         assert testobj.quiet_options == {'dest': testee.Mode.multi.name}
         assert capsys.readouterr().out == (
-                f"called gui.show_dialog with args ({testee.gui.QuietOptions}, {testobj.gui})\n")
+            f"called gui.show_dialog with args ({testee.gui.QuietOptions}, {testobj.gui})\n")
         testobj.quiet_options = {}
         testobj.gui.newquietoptions = {'single_file': True, 'fname': 'xxx', 'pattern': 'yyy'}
         testobj.configure_quiet()
         assert testobj.quiet_options == {'dest': testee.Mode.single.name, 'fname': 'xxx',
                                          'pattern': 'yyy'}
         assert capsys.readouterr().out == (
-                f"called gui.show_dialog with args ({testee.gui.QuietOptions}, {testobj.gui})\n")
+            f"called gui.show_dialog with args ({testee.gui.QuietOptions}, {testobj.gui})\n")
 
     def test_configure_filter(self, monkeypatch, capsys):
         """unittest for Base.configure_filter
@@ -663,12 +1046,12 @@ class TestBase:
         testobj.update_blacklistfile = mock_update
         testobj.configure_filter()
         assert capsys.readouterr().out == (
-                f"called gui.show_dialog with args ({testee.gui.FilterOptions}, {testobj.gui})\n")
+            f"called gui.show_dialog with args ({testee.gui.FilterOptions}, {testobj.gui})\n")
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_2)
         testobj.configure_filter()
         assert capsys.readouterr().out == (
-                f"called gui.show_dialog with args ({testee.gui.FilterOptions}, {testobj.gui})\n"
-                "called Base.update_blacklistfile\n")
+            f"called gui.show_dialog with args ({testee.gui.FilterOptions}, {testobj.gui})\n"
+            "called Base.update_blacklistfile\n")
 
     def test_get_output_filename(self, monkeypatch, capsys):
         """unittest for Base.get_output_filename
@@ -732,22 +1115,22 @@ class TestBase:
         testobj.gui.get_radiogroup_checked = mock_check_2
         testobj.configure_linter()
         assert capsys.readouterr().out == (
-                "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
-                "called MainGui.get_radiogroup_checked with args ('check',)\n")
+            "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
+            "called MainGui.get_radiogroup_checked with args ('check',)\n")
         counter = 0
         testobj.gui.get_radiogroup_checked = mock_check_3
         testobj.configure_linter()
         assert capsys.readouterr().out == (
-                "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
-                "called MainGui.get_radiogroup_checked with args ('check',)\n")
+            "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
+            "called MainGui.get_radiogroup_checked with args ('check',)\n")
         counter = 0
         testobj.gui.get_radiogroup_checked = mock_check_4
         # breakpoint()
         testobj.configure_linter()
         assert capsys.readouterr().out == (
-                "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
-                "called MainGui.get_radiogroup_checked with args ('check',)\n"
-                "called subprocess.run with args (['aa', 'ss bb'],)\n")
+            "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
+            "called MainGui.get_radiogroup_checked with args ('check',)\n"
+            "called subprocess.run with args (['aa', 'ss bb'],)\n")
 
     def test_determine_common(self, monkeypatch, capsys):
         """unittest for Base.determine_common
@@ -841,50 +1224,50 @@ class TestBase:
         testobj.do_checks.filenames = ['aaa', 'bbb', 'ccc', 'ddd']
         assert not testobj.determine_items_to_skip()
         assert capsys.readouterr().out == (
-                "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
-                "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n")
+            "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
+            "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n")
         # skip_dirs True, skip_files False; show_dialog niet gecanceld
         testobj.gui.get_checkbox_value = mock_get_value_2
         assert not testobj.determine_items_to_skip()
         assert capsys.readouterr().out == (
-                "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
-                "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
-                f"called gui.show_dialog with args ({testobj.gui},) {{'files': False}}\n")
+            "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
+            "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
+            f"called gui.show_dialog with args ({testobj.gui},) {{'files': False}}\n")
         # idem; show_dialog gecanceld
         counter = 0
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_2)
         assert testobj.determine_items_to_skip()
         assert capsys.readouterr().out == (
-                "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
-                "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
-                f"called gui.show_dialog with args ({testobj.gui},) {{'files': False}}\n")
+            "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
+            "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
+            f"called gui.show_dialog with args ({testobj.gui},) {{'files': False}}\n")
         # skip_dirs False, skip_files True; show_dialog niet gecanceld
         counter = 0
         testobj.gui.get_checkbox_value = mock_get_value_3
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show)
         assert not testobj.determine_items_to_skip()
         assert capsys.readouterr().out == (
-                "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
-                "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
-                f"called gui.show_dialog with args ({testobj.gui},) {{}}\n")
+            "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
+            "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
+            f"called gui.show_dialog with args ({testobj.gui},) {{}}\n")
         # idem; show_dialog gecanceld
         counter = 0
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_2)
         assert testobj.determine_items_to_skip()
         assert capsys.readouterr().out == (
-                "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
-                "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
-                f"called gui.show_dialog with args ({testobj.gui},) {{}}\n")
+            "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
+            "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
+            f"called gui.show_dialog with args ({testobj.gui},) {{}}\n")
         # skip_dirs True, skip_files True; show_dialog 2e keer gecanceld
         counter = 0
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_3)
         testobj.gui.get_checkbox_value = mock_get_value_4
         assert not testobj.determine_items_to_skip()
         assert capsys.readouterr().out == (
-                "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
-                "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
-                f"called gui.show_dialog with args ({testobj.gui},) {{'files': False}}\n"
-                f"called gui.show_dialog with args ({testobj.gui},) {{}}\n")
+            "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
+            "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
+            f"called gui.show_dialog with args ({testobj.gui},) {{'files': False}}\n"
+            f"called gui.show_dialog with args ({testobj.gui},) {{}}\n")
 
     def test_remove_files_in_selected_dirs(self, monkeypatch, capsys):
         """unittest for Base.determine_items_to_skip
