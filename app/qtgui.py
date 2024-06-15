@@ -462,13 +462,14 @@ class MainGui(qtw.QWidget):
         options = ['&' + checktype.title() for checktype in checktypes]
         for text in options:
             self.check_options.addButton(qtw.QRadioButton(text, self))
+        dflt_id = ''
         for btn in self.check_options.buttons():
             box.addWidget(btn)
             if btn.text() == '&' + str(self.master.checking_type).title():
                 btn.setChecked(True)
             if btn.text() == options[default_option]:
                 dflt_id = self.check_options.id(btn)
-        if not self.check_options.checkedButton():
+        if not self.check_options.checkedButton() and dflt_id:
             self.check_options.button(dflt_id).setChecked(True)
         self.grid.addLayout(box, self.row, 0, 1, 2)
 
@@ -498,13 +499,13 @@ class MainGui(qtw.QWidget):
         if self.master.mode == Mode.single.value:
             self.grid.addWidget(qtw.QLabel('In file/directory:', self), self.row, 0)
             box = qtw.QHBoxLayout()
-            box.addWidget(qtw.QLabel(self.master.fnames[0], self))
+            box.addWidget(qtw.QLabel(self.master.p['filelist'][0], self))
             box.addStretch()
             self.grid.addLayout(box, self.row, 1)
         elif self.master.mode == Mode.standard.value:
             initial = ''
-            if self.master.fnames:
-                initial = self.master.fnames[0]
+            if self.master.p['filelist']:
+                initial = self.master.p['filelist'][0]
             self.zoek = qtw.QPushButton("&Zoek")
             self.zoek.clicked.connect(self.zoekdir)
             self.vraag_dir = self.add_combobox_row("In directory:", self.master._mru_items["dirs"],
@@ -516,7 +517,7 @@ class MainGui(qtw.QWidget):
                                 0, 1, 3)
             self.row += 1
             self.lbox = qtw.QListWidget(self)
-            self.lbox.insertItems(0, self.master.fnames)
+            self.lbox.insertItems(0, self.master.p['filelist'])
             self.grid.addWidget(self.lbox, self.row, 0, 1, 3)
 
         if self.master.mode != Mode.single.value:
@@ -531,7 +532,7 @@ class MainGui(qtw.QWidget):
             self.vraag_repo = self.add_checkbox_row(
                 'Check repository files only (also does subdirectories)',
                 self.master.p['fromrepo'])
-        if self.master.mode != Mode.single.value or os.path.isdir(self.master.fnames[0]):
+        if self.master.mode != Mode.single.value or os.path.isdir(self.master.p['filelist'][0]):
             txt = ''
             if self.master.mode == Mode.multi.value:
                 txt = "van geselecteerde directories "

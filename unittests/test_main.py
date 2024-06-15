@@ -200,7 +200,6 @@ class TestBase:
                                          'ignore': testee.os.path.expanduser('~/projects')}
         assert testobj._words == ('woord', 'woord', 'spec', 'pad', )
         assert testobj._optkeys == ("subdirs", "fromrepo")
-        assert testobj.fnames == []
         assert capsys.readouterr().out == (
             "called Base.get_editor_option\n"
             "called Base.build_blacklist_if_needed\n"
@@ -1131,25 +1130,6 @@ class TestBase:
             "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
             "called MainGui.get_radiogroup_checked with args ('check',)\n"
             "called subprocess.run with args (['aa', 'ss bb'],)\n")
-
-    def test_determine_common(self, monkeypatch, capsys):
-        """unittest for Base.determine_common
-        """
-        # monkeypatch.setattr(testee.os.path, 'commonpath', mock_commonpath)
-        testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.mode = testee.Mode.single.value
-        testobj.fnames = ['hello']
-        assert testobj.determine_common() == "hello"
-        testobj.mode = testee.Mode.multi.value
-        testobj.fnames = ['hello/xx', 'hello/yy']
-        monkeypatch.setattr(testee.os.path, 'isfile', lambda *x: False)
-        assert testobj.determine_common() == "hello"
-        testobj.fnames = ['hello/world/xx', 'hello/world/yy']
-        monkeypatch.setattr(testee.os.path, 'isfile', lambda *x: True)
-        assert testobj.determine_common() == "hello" + testee.os.sep
-        testobj.mode = None
-        testobj.p = {"pad": 'hello'}
-        assert testobj.determine_common() == "hello" + testee.os.sep
 
     def test_determine_items_to_skip(self, monkeypatch, capsys):
         """unittest for Base.determine_items_to_skip

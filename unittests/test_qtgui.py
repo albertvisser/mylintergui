@@ -649,11 +649,10 @@ class TestMainGui:
         testobj.master.mode = testee.Mode.standard.value
         testobj.master.linter_from_input = 'ruff'
         testobj.master.dest_from_input = False
-        testobj.master.fnames = []
         testobj.master._mru_items = {'dirs': ['aaa']}
         testobj.master.checking_type = 'xxx'
         testobj.master.repo_only = False
-        testobj.master.p = {'subdirs': False}
+        testobj.master.p = {'subdirs': False, 'filelist': []}
         testobj.master.doe = mock_doe
         testobj.setLayout = mock_setlayout
         testobj.show = mock_show
@@ -671,7 +670,7 @@ class TestMainGui:
                                                                                      extra='',
                                                                                      row=lastrow)
         fname = tmp_path / 'xxx'
-        testobj.master.fnames = [str(fname)]
+        testobj.master.p['filelist'] = [str(fname)]
         with pytest.raises(SystemExit):
             testobj.setup_screen()
         assert isinstance(testobj.grid, testee.qtw.QGridLayout)
@@ -714,7 +713,7 @@ class TestMainGui:
                                                                                     row=lastrow)
 
         testobj.master.mode = testee.Mode.multi.value
-        testobj.master.fnames = ['xxx', 'yyy']
+        testobj.master.p['filelist'] = ['xxx', 'yyy']
         with pytest.raises(SystemExit):
             testobj.setup_screen()
         assert isinstance(testobj.grid, testee.qtw.QGridLayout)

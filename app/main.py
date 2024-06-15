@@ -70,7 +70,6 @@ class Base:
         self._optkeys = ("subdirs", "fromrepo")
         for key in self._optkeys:
             self.p[key] = False
-        self.fnames = []
         self.get_editor_option()
         self.build_blacklist_if_needed()
         self.set_parameters(self.set_mode(args))
@@ -115,7 +114,7 @@ class Base:
         self.repo_only = False
         if args.r:
             self.repo_only = True
-            args.d = settings.get_project_dir(args.r)
+            args.d = settings.get_project_dir(pathlib.Path.cwd().name if args.r == '.' else args.r)
 
         for x in Mode:
             test = args.__getattribute__(x.value)
@@ -145,20 +144,20 @@ class Base:
                 raise ValueError('Need filename for application type "single"')
             inp = pathlib.Path(inp).resolve()
             self.p['filelist'] = [str(inp)]
-            self.fnames = [str(inp)]
             self.readini(inp.parent)
         elif self.mode == Mode.multi.value:  # data is file met namen om te verwerken
             self.title += " - file list version"
             if len(inp) == 1:
-                self.fnames = get_paths_from_file(inp[0])
-                if not self.fnames:
+                fnames = get_paths_from_file(inp[0])
+                if not fnames:
                     raise ValueError('Input is not a usable file for multi mode:'
                                      ' should contain (only) path names')
             elif inp:
-                self.fnames = inp
+                fnames = inp
             else:
                 raise ValueError('Need filename or list of files for application type "multi"')
-            self.common_part = os.path.commonpath(self.fnames)
+            self.p['filelist'] = fnames
+            self.common_part = os.path.commonpath(fnames)
             self.readini(self.common_part)
         else:
             raise ValueError('Execution mode could not be determined from input')
@@ -241,9 +240,6 @@ class Base:
             self.gui.meld_info("Geen bestanden gevonden")
             return
 
-        # common_part = self.determine_common()
-        # if not (self.mode == Mode.single.value or (len(self.fnames) == 1
-        #                                            and os.path.isfile(self.fnames[0]))):
         if len(self.p['filelist']) > 1 or os.path.isdir(self.p['filelist'][0]):
             canceled = self.determine_items_to_skip()
             if canceled:
@@ -408,24 +404,6 @@ class Base:
         # subprocess.run(['xdg-open', fnaam], check=False)
         prog, fileopt, _ = self.editor_option
         subprocess.run(prog + [fileopt.format(fnaam)])
-
-    def determine_common(self):
-        """get part of path all files have in common
-        """
-        if self.mode == Mode.single.value:
-            test = self.fnames[0]
-        elif self.mode == Mode.multi.value:
-            test = os.path.commonpath(self.fnames)
-            # if test in self.fnames:
-            #    pass
-            # else:
-            #    while test and not os.path.exists(test):
-                    ## test = test[:-1]
-            if os.path.isfile(test):
-                test = os.path.dirname(test) + os.sep
-        else:
-            test = self.p["pad"] + os.sep
-        return test
 
     def determine_items_to_skip(self):
         """remove entries from Linter.dirnames and/or Linter.filenames if requested
