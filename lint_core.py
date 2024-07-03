@@ -8,9 +8,10 @@ import subprocess
 from types import SimpleNamespace
 
 ROOT = pathlib.Path.home() / '.linters'
-CMD = {
-    'pylint': ('pylint', '<src>'),
-    'flake8': ('python', '-m', 'flake8', '<src>')}
+# from .config import cmddict - gebruikt {} als placeholder i.p.v. <src> en pylint optie --reports=no
+CMD = {'ruff': ('ruff', 'check', '<src>'),
+       'flake8': ('python', '-m', 'flake8', '<src>'),
+       'pylint': ('pylint', '<src>')}
 origpath = sys.path
 sys.path.insert(0, str(pathlib.Path.home() / 'bin'))
 import settings
@@ -25,25 +26,28 @@ def lint_all(args):
     argument: list of project names (can be empty)
     """
     names = args.project
-    lint_them_all = False
+    # lint_them_all = False
     if not names:
-        lint_them_all = True
+        # lint_them_all = True
         names = settings.all_repos
     for name in names:
-        if not lint_them_all and name not in settings.all_repos:
-            if [name] == names:
-                print("Unknown project name", name)
+        if name not in settings.all_repos:
+            print("Unknown project name", name)
+            if [name] == names:  # and not lint_them_all:
+                return
             continue
         if name in settings.DO_NOT_LINT:  # do_not_lint:
+            print(name, "is marked as do-not-lint")
             if [name] == names:
-                print(name, "is marked as do-not-lint")
+                return
             continue
         os.chdir(os.path.join(settings.PROJECTS_BASE, name))
         args = SimpleNamespace(linter='', file=None, recursive=True)
-        args.linter = 'pylint'
-        Main(args)
-        args.linter = 'flake8'
-        Main(args)
+        for name in CMD:
+            args.linter = name
+            Main(args)
+            print('.', end='')
+    print('ready.')
 
 
 class Main:
@@ -58,7 +62,6 @@ class Main:
             self.lint(item, args.out)
         else:
             self.scan(pathlib.Path.cwd(), args.recursive)
-        print('ready.')
 
     def determine_files(self, filter_repo):
         """read hg manifest to filter out files that do not need to be checked
@@ -68,6 +71,7 @@ class Main:
             return
         repo_loc = pathlib.Path.cwd()
         test = repo_loc / '.hg'
+        command = ''
         if test.exists():
             command = ['hg', 'manifest']
         else:
@@ -108,14 +112,14 @@ class Main:
             #         (str(item.relative_to(pathlib.Path.home())), dts))
             if not out.parent.exists():
                 out.parent.mkdir(parents=True)
-        # with out.open('w') as _out:
-        #     subprocess.run(command, stdout=_out)
+        with out.open('w') as _out:
+            subprocess.run(command, stdout=_out)
 
     def scan(self, here, recursive=False):
         """apply linter to files in directory
         """
         for item in here.iterdir():
-            if item.is_file() and item.suffix in ('.py', 'pyw', ''):
+            if item.is_file() and item.suffix in ('.py', '.pyw', ''):
                 if item.name.startswith('.'):              # no hidden files
                     continue
                 if self.files and item not in self.files:  # ignore unselected
