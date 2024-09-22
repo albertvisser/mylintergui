@@ -643,6 +643,8 @@ class TestMainGui:
         monkeypatch.setattr(testee.qtw, 'QListWidget', mockqtw.MockListBox)
         monkeypatch.setattr(testee.qtw, 'QSpinBox', mockqtw.MockSpinBox)
         monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
+        monkeypatch.setattr(mockqtw.MockComboBox, 'editTextChanged', {str: mockqtw.MockSignal()})
+        assert capsys.readouterr().out == "called Signal.__init__\n"
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.add_combobox_row = mock_add_combo
         testobj.add_checkbox_row = mock_add_check
@@ -736,6 +738,7 @@ class TestMainGui:
         assert capsys.readouterr().out == expected_output['maingui_nogui'].format(testobj=testobj,
                                                                                   extra=extra,
                                                                                   row=lastrow)
+
 
     def test_add_combobox_row(self, monkeypatch, capsys, expected_output):
         """unittest for MainGui.add_combobox_row
