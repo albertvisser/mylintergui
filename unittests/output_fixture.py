@@ -1,3 +1,6 @@
+"""Fixtures for lintergui unittests
+"""
+
 import pytest
 
 o_filter = """\
@@ -217,7 +220,7 @@ called HBox.addStretch
 called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
 called Dialog.setLayout
 called Widget.resize with args (724, 480)
-called Dialog.exec_
+called Dialog.exec
 """
 o_main_start = """\
 called Grid.__init__
@@ -365,7 +368,7 @@ called RadioButton.setFocus
 called MainGui.show
 """
 o_main_final = o_main_end + "called Base.doe\ncalled MainGui.close\n"
-o_main_end += "called Application.exec_\n"
+o_main_end += "called Application.exec\n"
 o_combo = """\
 called Label.__init__ with args ('label text',)
 called Grid.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLabel'> at ({row}, 0)
@@ -424,7 +427,7 @@ def expected_output():
             'maingui_standard': (o_main_start + o_main_bg1 + o_main_1a + o_main_cb + o_main_1b
                                  + o_main_3 + o_main_5 + o_main_6 + o_main_7 + o_main_end),
             'maingui_standard2': (o_main_start + o_main_bg1 + o_main_1a + o_main_cb + o_main_1b
-                                 + o_main_3 + o_main_5 + o_main_6 + o_main_7 + o_main_end),
+                                  + o_main_3 + o_main_5 + o_main_6 + o_main_7 + o_main_end),
             'maingui_single1': (o_main_start + o_main_bg2 + o_main_1a + o_main_1b + o_main_2
                                 + o_main_end),
             'maingui_single2': (o_main_start + o_main_bg2 + o_main_1a + o_main_1b + o_main_2
@@ -435,4 +438,3 @@ def expected_output():
                               + o_main_5 + o_main_6a + o_main_7 + o_main_final),
             'combobox_row1': o_combo + o_combo_end1, 'combobox_row2': o_combo + o_combo_end2,
             'checkbox_row': o_check, 'checkbox_row2': o_check2, 'checkbox_row3': o_check3}
-

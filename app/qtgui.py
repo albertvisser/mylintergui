@@ -3,9 +3,9 @@
 import os
 import sys
 import subprocess
-import PyQt5.QtCore as core
-import PyQt5.QtGui as gui
-import PyQt5.QtWidgets as qtw
+import PyQt6.QtCore as core
+import PyQt6.QtGui as gui
+import PyQt6.QtWidgets as qtw
 
 # from .linter_base import iconame, LBase, log, Mode
 from .config import Mode, cmddict, checktypes, default_option
@@ -18,7 +18,7 @@ def waiting_cursor(func):
     "change the cursor before and after an operation"
     def wrap_operation(self):
         "the wrapped operation is a method without arguments"
-        self.app.setOverrideCursor(gui.QCursor(core.Qt.WaitCursor))
+        self.app.setOverrideCursor(gui.QCursor(core.Qt.CursorShape.WaitCursor))
         func(self)
         self.app.restoreOverrideCursor()
     return wrap_operation
@@ -26,8 +26,8 @@ def waiting_cursor(func):
 
 def show_dialog(cls, *args, **kwargs):
     "execute the given dialog and return whether it's confirmed or not"
-    dlg = cls(*args, **kwargs).exec_()
-    return dlg == qtw.QDialog.Accepted
+    dlg = cls(*args, **kwargs).exec()
+    return dlg == qtw.QDialog.DialogCode.Accepted
 
 
 class FilterOptions(qtw.QDialog):
@@ -352,7 +352,7 @@ class Results(qtw.QDialog):
 
         self.setLayout(vbox)
         self.resize(574 + breedte, 480)
-        self.exec_()
+        self.exec()
 
     def populate_list(self):
         """copy results to listbox
@@ -372,16 +372,14 @@ class Results(qtw.QDialog):
         self.results = []
         self.lijst.clear()
         self.parent.master.do_checks.rpt = ["".join(self.parent.master.do_checks.specs)]
-        # self.parent.app.setOverrideCursor(gui.QCursor(core.Qt.WaitCursor))
         self.parent.execute_action()
         self.populate_list()
         self.filelist.setCurrentIndex(0)
-        # self.parent.app.restoreOverrideCursor()
 
     def kopie(self):
         """callback for button 'Copy to file'
         """
-        dlg = QuietOptions(self.parent).exec_()
+        dlg = QuietOptions(self.parent).exec()
         if not dlg:
             return
         if self.parent.newquietoptions['single_file']:
@@ -574,7 +572,7 @@ class MainGui(qtw.QWidget):
             self.master.doe()
             self.close()
         else:
-            sys.exit(self.app.exec_())
+            sys.exit(self.app.exec())
 
     def add_combobox_row(self, labeltext, itemlist, initial='', button=None):
         """add a line to the GUI containing a combobox
@@ -621,15 +619,9 @@ class MainGui(qtw.QWidget):
             self.grid.addWidget(chk, self.row, 1)
         return chk
 
-    # def check_case(self, inp):
-    #     """autocompletion voor zoektekst in overeenstemming brengen met case indicator
-    #     """
-    #     new_value = core.Qt.CaseSensitive if inp == core.Qt.Checked else core.Qt.CaseInsensitive
-    #     self.vraag_zoek.setAutoCompletionCaseSensitivity(new_value)
-
     def keyPressEvent(self, event):
         """event handler voor toetsaanslagen"""
-        if event.key() == core.Qt.Key_Escape:
+        if event.key() == core.Qt.Key.Key_Escape:
             self.close()
 
     def get_radiogroup_checked(self, group):
@@ -642,11 +634,12 @@ class MainGui(qtw.QWidget):
 
     def meld_fout(self, mld):
         "show message as error"
-        qtw.QMessageBox.critical(self, self.master.fouttitel, mld, qtw.QMessageBox.Ok)
+        qtw.QMessageBox.critical(self, self.master.fouttitel, mld, qtw.QMessageBox.StandardButton.Ok)
 
     def meld_info(self, msg):
         "show message as informational"
-        qtw.QMessageBox.information(self, self.master.resulttitel, msg, qtw.QMessageBox.Ok)
+        qtw.QMessageBox.information(self, self.master.resulttitel, msg,
+                                    qtw.QMessageBox.StandardButton.Ok)
 
     def get_combobox_textvalue(self, widget):
         "get text shown in combobox"

@@ -13,6 +13,7 @@ class MockBase:
     def __init__(self, *args, **kwargs):
         print('called Base.__init__ with args', args, kwargs)
     def get_output_filename(self, *args):
+        "stub"
         print("called Base.get_output_filename with args", args)
         if len(args) == 1:
             return args[0]
@@ -33,8 +34,10 @@ class MockMainGui:
     """stub for qtgui.MainGui object
     """
     def __init__(self, *args, **kwargs):
+        "stub"
         print('called MainGui.__init__ with args', args, kwargs)
     def execute_action(self):
+        "stub"
         print('called MainGui.execute_action')
 
 
@@ -48,6 +51,7 @@ class MockFinder:
     specs = ['specs', 'and more specs']
 
     def do_action(self):
+        "stub"
         print('called Finder.do_action')
 
 
@@ -61,24 +65,25 @@ def _test_waiting_cursor(monkeypatch, capsys):
     assert capsys.readouterr().out == ("")
     # wordt meegetest met MainGui.execute_action
 
+
 def test_show_dialog(monkeypatch, capsys):
     """unittest for qtgui.show_dialog
     """
     def mock_exec(cls):
-        print('called Dialog.exec_')
+        print('called Dialog.exec')
         return True
     mockparent = 'parent'
     monkeypatch.setattr(testee.qtw.QDialog, '__init__', mockqtw.MockDialog.__init__)
-    monkeypatch.setattr(testee.qtw.QDialog, 'exec_', mockqtw.MockDialog.exec_)
+    monkeypatch.setattr(testee.qtw.QDialog, 'exec', mockqtw.MockDialog.exec)
     cls = testee.qtw.QDialog
     assert not testee.show_dialog(cls, mockparent)
     assert capsys.readouterr().out == ("called Dialog.__init__ with args parent () {}\n"
-                                       "called Dialog.exec_\n")
-    monkeypatch.setattr(testee.qtw.QDialog, 'exec_', mock_exec)
+                                       "called Dialog.exec\n")
+    monkeypatch.setattr(testee.qtw.QDialog, 'exec', mock_exec)
     cls = testee.qtw.QDialog
     assert testee.show_dialog(cls, mockparent)
     assert capsys.readouterr().out == ("called Dialog.__init__ with args parent () {}\n"
-                                       "called Dialog.exec_\n")
+                                       "called Dialog.exec\n")
 
 
 class TestFilterOptions:
@@ -406,7 +411,7 @@ class TestResults:
         monkeypatch.setattr(testee.qtw.QDialog, 'setWindowIcon', mockqtw.MockDialog.setWindowIcon)
         monkeypatch.setattr(testee.qtw.QDialog, 'setLayout', mockqtw.MockDialog.setLayout)
         monkeypatch.setattr(testee.qtw.QWidget, 'resize', mockqtw.MockWidget.resize)
-        monkeypatch.setattr(testee.qtw.QDialog, 'exec_', mockqtw.MockDialog.exec_)
+        monkeypatch.setattr(testee.qtw.QDialog, 'exec', mockqtw.MockDialog.exec)
         monkeypatch.setattr(testee.qtw, 'QVBoxLayout', mockqtw.MockVBoxLayout)
         monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
         monkeypatch.setattr(testee.gui, 'QFont', mockqtw.MockFont)
@@ -485,7 +490,7 @@ class TestResults:
         """unittest for Results.kopie
         """
         def mock_exec(self):
-            print('called Dialog.exec_')
+            print('called Dialog.exec')
             return True
         def mock_out(*args):
             print("called Base.get_output_filename with args", args)
@@ -502,15 +507,15 @@ class TestResults:
         testobj.kopie()
         assert capsys.readouterr().out == (
                 f"called Dialog.__init__ with args {testobj.parent} () {{}}\n"
-                "called Dialog.exec_\n")
-        monkeypatch.setattr(testee.QuietOptions, 'exec_', mock_exec)
+                "called Dialog.exec\n")
+        monkeypatch.setattr(testee.QuietOptions, 'exec', mock_exec)
         # breakpoint()
         testobj.kopie()
         assert (tmp_path / 'filename').read_text() == ('results for xx\n\nabcdefg\n\n\n'
                                                        'results for yy\n\nhijklmn\n')
         assert capsys.readouterr().out == (
                 f"called Dialog.__init__ with args {testobj.parent} () {{}}\n"
-                "called Dialog.exec_\n"
+                "called Dialog.exec\n"
                 f"called Base.get_output_filename with args ('filename',)\n"
                 f"called MessageBox.information with args `{testobj}` `title`"
                 f" `Output saved as {tmp_path}/filename`\n")
@@ -520,7 +525,7 @@ class TestResults:
         assert (tmp_path / 'yyz').read_text() == 'results for yy\n\nhijklmn\n'
         assert capsys.readouterr().out == (
                 f"called Dialog.__init__ with args {testobj.parent} () {{}}\n"
-                "called Dialog.exec_\n"
+                "called Dialog.exec\n"
                 f"called Base.get_output_filename with args ('{{}}z', 'xx')\n"
                 f"called Base.get_output_filename with args ('{{}}z', 'yy')\n"
                 f"called MessageBox.information with args `{testobj}` `title`"
@@ -739,7 +744,6 @@ class TestMainGui:
                                                                                   extra=extra,
                                                                                   row=lastrow)
 
-
     def test_add_combobox_row(self, monkeypatch, capsys, expected_output):
         """unittest for MainGui.add_combobox_row
         """
@@ -804,7 +808,7 @@ class TestMainGui:
         event = types.SimpleNamespace(key=lambda: 'anything')
         testobj.keyPressEvent(event)
         assert capsys.readouterr().out == ""
-        event = types.SimpleNamespace(key=lambda: testee.core.Qt.Key_Escape)
+        event = types.SimpleNamespace(key=lambda: testee.core.Qt.Key.Key_Escape)
         testobj.keyPressEvent(event)
         assert capsys.readouterr().out == "called MainGui.close\n"
 
@@ -891,7 +895,7 @@ class TestMainGui:
         testobj.master.do_checks = MockFinder()
         testobj.execute_action()
         assert capsys.readouterr().out == (
-                f"called Cursor.__init__ with arg {testee.core.Qt.WaitCursor}\n"
+                f"called Cursor.__init__ with arg {testee.core.Qt.CursorShape.WaitCursor}\n"
                 "called Application.setOverrideCursor with arg of type"
                 " <class 'mockgui.mockqtwidgets.MockCursor'>\n"
                 "called Finder.do_action\n"
