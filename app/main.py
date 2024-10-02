@@ -349,8 +349,6 @@ class Base:
     def configure_quiet(self):
         """configure quiet mode
         """
-        # dlg = QuietOptions(self).exec_()
-        # if dlg != qtw.QDialog.Accepted:
         ok = gui.show_dialog(gui.QuietOptions, self.gui)
         if not ok:
             return
@@ -368,8 +366,6 @@ class Base:
     def configure_filter(self):
         """configure filtering
         """
-        # dlg = FilterOptions(self).exec_()
-        # if dlg == qtw.QDialog.Accepted:
         ok = gui.show_dialog(gui.FilterOptions, self.gui)
         if ok:
             self.update_blacklistfile()
