@@ -740,6 +740,29 @@ class TestBase:
             f"called Linter.__init__ with args {{'filelist': [{target!r}],"
             " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
             "called Gui.meld_info with args ('Something went\\nwrong',)\n")
+        testobj.skip_screen = True
+        testobj.doe()
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkpath with args ('combobox',)\n"
+            "called Gui.get_checkbox_value with args ('repo',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called Gui.get_checkbox_value with args ('subdirs',)\n"
+            "called Gui.get_checkbox_value with args ('links',)\n"
+            "called Gui.get_spinbox_value with args ('depth',)\n"
+            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called Gui.get_checkbox_value with args ('quiet',)\n"
+            "called Base.check_quiet_options with args ()\n"
+            f"called Linter.__init__ with args {{'filelist': [{target!r}],"
+            " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
+            "called Gui.meld_info with args ('Something went\\nwrong',)\n")
+
+        testobj.skip_screen = False
         monkeypatch.setattr(testee.Linter, '__init__', mock_init_2)
         testobj.doe()
         assert capsys.readouterr().out == (
@@ -1141,8 +1164,8 @@ class TestBase:
                 self._value = value
             def __str__(self):
                 return self._value
-        def mock_remove(names):
-            print(f'called Base.remove_files_in_selected_directories with arg {names}')
+        def mock_remove():
+            print('called Base.remove_files_in_selected_dirs')
         counter = 0
         def mock_get_value(arg):
             print(f"called Gui.get_checkbox_value with arg '{arg}'")
@@ -1173,13 +1196,13 @@ class TestBase:
         def mock_show_3(self, *args, **kwargs):
             nonlocal counter
             print('called gui.show_dialog with args', args, kwargs)
-            counter = 1
+            counter += 1
             if counter == 1:
                 return True  # niet gecanceld
             return False  # wel gecanceld)
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.remove_files_in_selected_directories = mock_remove
+        testobj.remove_files_in_selected_dirs = mock_remove
         testobj.gui.ask_skipdirs = MockCheckBox('ask_skipdirs')
         testobj.gui.ask_skipfiles = MockCheckBox('ask_skipfiles')
         testobj.gui.get_checkbox_value = mock_get_value
@@ -1198,7 +1221,6 @@ class TestBase:
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show)
         assert not testobj.determine_items_to_skip()
         assert not capsys.readouterr().out
-        # return
         # skip_dirs en skip_files False
         testobj.do_checks.dirnames = ['xxx', 'yyy']
         testobj.do_checks.filenames = ['aaa', 'bbb', 'ccc', 'ddd']
@@ -1212,7 +1234,8 @@ class TestBase:
         assert capsys.readouterr().out == (
             "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
             "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
-            f"called gui.show_dialog with args ({testobj.gui},) {{'files': False}}\n")
+            f"called gui.show_dialog with args ({testobj.gui},) {{'files': False}}\n"
+            "called Base.remove_files_in_selected_dirs\n")
         # idem; show_dialog gecanceld
         counter = 0
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_2)
@@ -1242,12 +1265,14 @@ class TestBase:
         counter = 0
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_3)
         testobj.gui.get_checkbox_value = mock_get_value_4
-        assert not testobj.determine_items_to_skip()
+        assert testobj.determine_items_to_skip()
         assert capsys.readouterr().out == (
             "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
             "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
             f"called gui.show_dialog with args ({testobj.gui},) {{'files': False}}\n"
-            f"called gui.show_dialog with args ({testobj.gui},) {{}}\n")
+            "called Base.remove_files_in_selected_dirs\n"
+            f"called gui.show_dialog with args ({testobj.gui},) {{}}\n"
+            f"called gui.show_dialog with args ({testobj.gui},) {{'files': False}}\n")
 
     def test_remove_files_in_selected_dirs(self, monkeypatch, capsys):
         """unittest for Base.determine_items_to_skip

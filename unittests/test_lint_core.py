@@ -13,6 +13,7 @@ class MockDatetime:
         """
         return FIXDATE
 
+
 class MockMain:
     """stub for lint_core.Main
     """
@@ -24,6 +25,7 @@ class MockMain:
         print('called Main.lint with args', args)
     def scan(self, *args):
         print('called Main.scan with args', args)
+
 
 def test_lint_all(monkeypatch, capsys, tmp_path):
     """unittest for lint_core.lint_all
@@ -75,6 +77,7 @@ def test_lint_all(monkeypatch, capsys, tmp_path):
             ".called Main.__init__ with arg namespace(linter='flake8', file=None, recursive=True)\n"
             ".called Main.__init__ with arg namespace(linter='pylint', file=None, recursive=True)\n"
             ".ready.\n")
+
 
 class TestMain:
     """unittest for lint_core.Main
@@ -152,6 +155,8 @@ class TestMain:
         """
         def mock_home():
             return tmp_path
+        def mock_mkdir(*args, **kwargs):
+            print('called path.mkdir with args', args, kwargs)
         def mock_run(*args, **kwargs):
             print('called subprocess.run with args', args, kwargs)
             return types.SimpleNamespace(stdout=b'xxx.py\nyyy.py')
@@ -168,6 +173,7 @@ class TestMain:
         otherfilename.parent.mkdir(parents=True)
         otherfilename.touch()
 
+        # monkeypatch.setattr(testee.pathlib.Path, 'mkdir', mock_mkdir)
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.linter = 'xxx'
         testobj.lint(testee.pathlib.Path('item'), out='')
@@ -183,6 +189,13 @@ class TestMain:
         testobj.lint(testfilename)
         # PosixPath('/home/albert/.linters/xxx/testdir/testfile.py-20200101000000')
         # testee.ROOT / testobj.linter /
+        assert capsys.readouterr().out == (
+                "called subprocess.run with args (['yyy',"
+                f" '{tmp_path}/projects/testdir/testfile.py'],)"
+                f" {{'stdout': <_io.TextIOWrapper name='{tmp_path}/.linters/xxx/testdir/"
+                "testfile.py-20200101000000' mode='w' encoding='UTF-8'>}\n")
+
+        testobj.lint(testfilename)  # nog een keer waarbij de parent al bestaat
         assert capsys.readouterr().out == (
                 "called subprocess.run with args (['yyy',"
                 f" '{tmp_path}/projects/testdir/testfile.py'],)"

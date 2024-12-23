@@ -68,7 +68,7 @@ class Linter:
         # self.dirnames = set()
         # self.filenames = []
         for entry in self.p['filelist']:
-            print(entry)
+            # print(entry)
             hlp = pathlib.Path(entry)
             if hlp.name in self.p['blacklist']['exclude_files']:
             # if os.path.basename(entry) in self.p['blacklist']['exclude_files']:

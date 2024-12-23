@@ -510,7 +510,7 @@ class MainGui(qtw.QWidget):
                                                    initial=initial, button=self.zoek)
             self.vraag_dir.setCompleter(None)
             self.vraag_dir.editTextChanged[str].connect(self.master.check_loc)
-        elif self.master.mode == Mode.multi.value:
+        else:  # if self.master.mode == Mode.multi.value:  # currently only other possibility
             self.grid.addWidget(qtw.QLabel('In de volgende files/directories:', self), self.row,
                                 0, 1, 3)
             self.row += 1

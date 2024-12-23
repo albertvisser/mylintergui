@@ -23,6 +23,8 @@ class TestLinter:
         testobj = testee.Linter()
         assert capsys.readouterr().out == 'called Linter.__init__ with args ()\n'
         testobj.p = {}
+        testobj.filenames = []
+        testobj.dirnames = set()
         return testobj
 
     def test_init(self, monkeypatch, capsys):
@@ -124,11 +126,13 @@ class TestLinter:
         testobj.get_from_repo()
         assert testobj.filenames == ['this', 'not-this', 'only-this.py']
 
+        testobj.filenames = []
         testobj.p['blacklist'] = {'exclude_files': ['not-this'], 'include_exts': ['py', 'pyw', '']}
         testobj.p['filelist'] = ['this', 'not-this', 'only-this.py']
         testobj.get_from_repo()
         assert testobj.filenames == ['this', 'only-this.py']
 
+        testobj.filenames = []
         testobj.p['blacklist'] = {'exclude_files': [], 'include_exts': ['py']}
         testobj.p['filelist'] = ['this', 'not-this.py', 'only-this.py']
         testobj.get_from_repo()
@@ -180,6 +184,7 @@ class TestLinter:
         """unittest for Linter.subdirs
         """
         class MockDirEntry:
+            "stub"
             def __init__(self, name):
                 self.path = name
         def mock_isfile(*args):
@@ -220,7 +225,7 @@ class TestLinter:
             nonlocal counter_d_b
             print(f"called Linter.dir_is_blacklisted with arg '{entry}'")
             counter_d_b += 1
-            return not counter_d_b == 1
+            return counter_d_b != 1
         def mock_file_blacklisted(entry):
             print(f"called Linter.file_is_blacklisted with arg '{entry}'")
             return True

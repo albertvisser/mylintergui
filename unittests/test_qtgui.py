@@ -357,8 +357,8 @@ class TestSelectNames:
         testobj.checklist = [mockqtw.MockCheckBox('xxx'), mockqtw.MockCheckBox('yyy')]
         testobj.checklist[0].setChecked(True)
         testobj.checklist[1].setChecked(False)
-        assert capsys.readouterr().out == ("called CheckBox.__init__\n"
-                                           "called CheckBox.__init__\n"
+        assert capsys.readouterr().out == ("called CheckBox.__init__ with text 'xxx'\n"
+                                           "called CheckBox.__init__ with text 'yyy'\n"
                                            "called CheckBox.setChecked with arg True\n"
                                            "called CheckBox.setChecked with arg False\n")
 

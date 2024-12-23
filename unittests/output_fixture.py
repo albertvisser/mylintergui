@@ -128,7 +128,7 @@ called Label.__init__ with args ('Selecteer de bestanden die je *niet* wilt verw
 called HBox.__init__
 called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockLabel'>
 called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
-called CheckBox.__init__
+called CheckBox.__init__ with text 'Select/Unselect All'
 called Signal.connect with args ({testobj.select_all},)
 called HBox.__init__
 called HBox.addSpacing
@@ -141,11 +141,11 @@ called HBox.addSpacing
 called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
 called Frame.__init__
 called VBox.__init__
-called CheckBox.__init__
+called CheckBox.__init__ with text 'xxx'
 called HBox.__init__
 called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockCheckBox'>
 called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
-called CheckBox.__init__
+called CheckBox.__init__ with text 'yyy'
 called HBox.__init__
 called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockCheckBox'>
 called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
@@ -250,7 +250,7 @@ called ButtonGroup.id with arg of type <class 'mockgui.mockqtwidgets.MockRadioBu
 called ButtonGroup.checkedButton
 called RadioButton.isChecked
 called RadioButton.isChecked
-called ButtonGroup.button with arg '2'
+called ButtonGroup.button with arg '-3'
 called RadioButton.setChecked with arg `True`
 """
 o_main_1a = """\
@@ -391,12 +391,12 @@ called HBox.addStretch
 called Grid.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'> at ({row}, 1)
 """
 o_check = """\
-called CheckBox.__init__
+called CheckBox.__init__ with text 'text'
 called Grid.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockCheckBox'> at ({row}, 1)
 """
 o_check2 = """\
 called HBox.__init__
-called CheckBox.__init__
+called CheckBox.__init__ with text 'text'
 called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockCheckBox'>
 called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockSpinBox'>
 called HBox.addStretch
@@ -404,7 +404,7 @@ called Grid.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLay
 """
 o_check3 = """\
 called HBox.__init__
-called CheckBox.__init__
+called CheckBox.__init__ with text 'text'
 called CheckBox.toggle
 called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockCheckBox'>
 called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockPushButton'>
