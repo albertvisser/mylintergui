@@ -5,3 +5,6 @@ __pycache__/
 
 # development stuff
 logs/
+.coverage
+projdocs*
+.sessionrc
