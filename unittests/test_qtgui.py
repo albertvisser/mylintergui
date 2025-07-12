@@ -630,7 +630,7 @@ class TestMainGui:
             print('called Base.add_checkbox_line with args', args, kwargs)
             return mockqtw.MockCheckBox()
         def mock_setlayout(arg):
-            print(f'called MainGui.setLayout with arg of type {type(arg)}')
+            print(f'called MainGui.setLayout with arg {type(arg).__name__}')
         def mock_doe():
             print('called Base.doe')
         def mock_show():
@@ -827,7 +827,9 @@ class TestMainGui:
         assert capsys.readouterr().out == ("called ButtonGroup.checkedButton\n")
         group.checkedButton = mock_checked
         assert testobj.get_radiogroup_checked(group) == "xxx"
-        assert capsys.readouterr().out == ("called ButtonGroup.checkedButton\n")
+        assert capsys.readouterr().out == ("called ButtonGroup.checkedButton\n"
+                                           "called RadioButton.text\n")
+
 
     def test_meld_fout(self, monkeypatch, capsys):
         """unittest for MainGui.meld_fout
@@ -896,8 +898,7 @@ class TestMainGui:
         testobj.execute_action()
         assert capsys.readouterr().out == (
                 f"called Cursor.__init__ with arg {testee.core.Qt.CursorShape.WaitCursor}\n"
-                "called Application.setOverrideCursor with arg of type"
-                " <class 'mockgui.mockqtwidgets.MockCursor'>\n"
+                "called Application.setOverrideCursor with arg MockCursor\n"
                 "called Finder.do_action\n"
                 "called Application.restoreOverrideCursor\n")
 
