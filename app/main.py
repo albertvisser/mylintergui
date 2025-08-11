@@ -245,6 +245,14 @@ class Base:
             if canceled:
                 return
 
+        self.do_checks.filenames = [x for x in self.do_checks.filenames if is_lintable(x)]
+        # self.do_checks_filenames = filter(is_lintable, self.fo_checks_filenames)
+
+        # nogmaals controle (misschien kan deze de eerste keer achterwege blijven?
+        if not self.do_checks.filenames:
+            self.gui.meld_info("Geen lintbare bestanden gevonden")
+            return
+
         self.gui.execute_action()
         gui.Results(self.gui, self.common_part)
 
@@ -485,6 +493,7 @@ def get_paths_from_file(fname):
 
 def is_lintable(path):
     "return filename if file can be linted, else empty string"
+    path = pathlib.Path(path)
     if not path.is_symlink():
         if path.suffix in ('.py', '.pyw'):  # python source files
             return True  # str(path)

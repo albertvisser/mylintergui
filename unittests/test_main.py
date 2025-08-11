@@ -574,11 +574,18 @@ class TestBase:
         def mock_determine_2():
             print('called Base.mock_determine_items_to_skip')
             return False
+        def mock_is_lintable(arg):
+            print(f'called is_lintable with arg {arg}')
+            return True
+        def mock_is_lintable_2(arg):
+            print(f'called is_lintable with arg {arg}')
+            return False
         def mock_execute():
             print('called Gui.execute_action')
         def mock_init_results(self, *args):
             print('called Results.__init__ with args', args)
 
+        monkeypatch.setattr(testee, 'is_lintable', mock_is_lintable)
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.p = {}
         testobj.gui.get_radiogroup_checked = mock_check_radio
@@ -720,6 +727,10 @@ class TestBase:
         testobj.blacklist = {'black': 'list'}
         testobj.doe()
         assert not testobj.p['follow_symlinks']
+        assert isinstance(testobj.do_checks, testee.Linter)
+        assert not testobj.do_checks.ok
+        # assert testobj.do_checks.filenames == []
+        assert testobj.p['filelist'] == [target]
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
             "called Base.check_type with args ('radiobutton',)\n"
@@ -742,6 +753,10 @@ class TestBase:
             "called Gui.meld_info with args ('Something went\\nwrong',)\n")
         testobj.skip_screen = True
         testobj.doe()
+        assert isinstance(testobj.do_checks, testee.Linter)
+        assert not testobj.do_checks.ok
+        # assert testobj.do_checks.filenames == []
+        assert testobj.p['filelist'] == [target]
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
             "called Base.check_type with args ('radiobutton',)\n"
@@ -765,6 +780,10 @@ class TestBase:
         testobj.skip_screen = False
         monkeypatch.setattr(testee.Linter, '__init__', mock_init_2)
         testobj.doe()
+        assert isinstance(testobj.do_checks, testee.Linter)
+        assert testobj.do_checks.ok
+        assert testobj.do_checks.filenames == []
+        assert testobj.p['filelist'] == [target]
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
             "called Base.check_type with args ('radiobutton',)\n"
@@ -788,6 +807,10 @@ class TestBase:
         monkeypatch.setattr(testee.Linter, '__init__', mock_init_3)
         testobj.common_part = 'common part'
         testobj.doe()
+        assert isinstance(testobj.do_checks, testee.Linter)
+        assert testobj.do_checks.ok
+        assert testobj.do_checks.filenames == [target]
+        assert testobj.p['filelist'] == [target]
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
             "called Base.check_type with args ('radiobutton',)\n"
@@ -807,10 +830,15 @@ class TestBase:
             f"called Base.schrijfini with arg '{tmp_path}'\n"
             f"called Linter.__init__ with args {{'filelist': [{target!r}],"
             " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
+            f"called is_lintable with arg {target}\n"
             "called Gui.execute_action\n"
             f"called Results.__init__ with args ({testobj.gui}, 'common part')\n")
         testobj.p['filelist'] = [tmp_path]
         testobj.doe()
+        assert isinstance(testobj.do_checks, testee.Linter)
+        assert testobj.do_checks.ok
+        assert testobj.do_checks.filenames == [target]
+        assert testobj.p['filelist'] == [target.parent]
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
             "called Base.check_type with args ('radiobutton',)\n"
@@ -835,6 +863,10 @@ class TestBase:
         testobj.gui.get_checkbox_value = mock_check_check_2
         testobj.determine_items_to_skip = mock_determine_2
         testobj.doe()
+        assert isinstance(testobj.do_checks, testee.Linter)
+        assert testobj.do_checks.ok
+        assert testobj.do_checks.filenames == [target]
+        assert testobj.p['filelist'] == [target, target.parent]
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
             "called Base.check_type with args ('radiobutton',)\n"
@@ -854,8 +886,36 @@ class TestBase:
             f"called Linter.__init__ with args {{'filelist': [{target!r}, {tmp_path!r}],"
             " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
             "called Base.mock_determine_items_to_skip\n"
+            f"called is_lintable with arg {target}\n"
             "called Gui.execute_action\n"
             f"called Results.__init__ with args ({testobj.gui}, 'common part')\n")
+        monkeypatch.setattr(testee, 'is_lintable', mock_is_lintable_2)
+        testobj.doe()
+        assert isinstance(testobj.do_checks, testee.Linter)
+        assert testobj.do_checks.ok
+        assert testobj.do_checks.filenames == []
+        assert testobj.p['filelist'] == [target, target.parent]
+        assert capsys.readouterr().out == (
+            "called Gui.get_radiogroup_checked with args ('check-options',)\n"
+            "called Base.check_type with args ('radiobutton',)\n"
+            "called Gui.get_radiogroup_checked with args ('linters',)\n"
+            "called Base.check_linter with args ('radiobutton',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkpath with args ('combobox',)\n"
+            "called Gui.get_checkbox_value with args ('repo',)\n"
+            "called Gui.get_combobox_textvalue with args ('dir',)\n"
+            "called Base.checkrepo with args (False, 'combobox')\n"
+            "called Gui.get_checkbox_value with args ('subdirs',)\n"
+            "called Gui.get_checkbox_value with args ('links',)\n"
+            "called Gui.get_spinbox_value with args ('depth',)\n"
+            "called Base.checksubs with args (False, False, 'spinbox')\n"
+            "called Gui.get_checkbox_value with args ('quiet',)\n"
+            f"called Base.schrijfini with arg '{target.parent}'\n"
+            f"called Linter.__init__ with args {{'filelist': [{target!r}, {tmp_path!r}],"
+            " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
+            "called Base.mock_determine_items_to_skip\n"
+            f"called is_lintable with arg {target}\n"
+            "called Gui.meld_info with args ('Geen lintbare bestanden gevonden',)\n")
 
     def test_check_loc(self, monkeypatch, capsys, tmp_path):
         """unittest for Base.check_loc
