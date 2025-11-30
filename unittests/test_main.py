@@ -129,25 +129,25 @@ def test_is_lintable(monkeypatch, capsys, tmp_path):
                                        f"called path.read_text with args ({mypath!r},)\n")
 
 
-class MockMainGui:
-    "stub for gui.MainGui"
+class MockLinterGui:
+    "stub for gui.LinterGui"
     def __init__(self, *args, **kwargs):
-        print('called MainGui.__init__ with args', args, kwargs)
+        print('called LinterGui.__init__ with args', args, kwargs)
 
     def setup_screen(self):
         "stub"
-        print('called MainGui.setup_screen')
+        print('called LinterGui.setup_screen')
 
     def set_checkbox_value(self, *args):
         "stub"
-        print('called MainGui.set_checkbox_value with args', args)
+        print('called LinterGui.set_checkbox_value with args', args)
 
 
-class TestBase:
-    """unittest for main.Base
+class TestLinterApp:
+    """unittest for main.LinterApp
     """
     def setup_testobj(self, monkeypatch, capsys):
-        """stub for main.Base object
+        """stub for main.LinterApp object
 
         create the object skipping the normal initialization
         intercept messages during creation
@@ -156,32 +156,32 @@ class TestBase:
         def mock_init(self, *args):
             """stub
             """
-            print('called Base.__init__ with args', args)
-        monkeypatch.setattr(testee.Base, '__init__', mock_init)
-        testobj = testee.Base()
-        testobj.gui = MockMainGui()
-        assert capsys.readouterr().out == ('called Base.__init__ with args ()\n'
-                                           "called MainGui.__init__ with args () {}\n")
+            print('called LinterApp.__init__ with args', args)
+        monkeypatch.setattr(testee.LinterApp, '__init__', mock_init)
+        testobj = testee.LinterApp()
+        testobj.gui = MockLinterGui()
+        assert capsys.readouterr().out == ('called LinterApp.__init__ with args ()\n'
+                                           "called LinterGui.__init__ with args () {}\n")
         return testobj
 
     def test_init(self, monkeypatch, capsys):
-        """unittest for Base.__init__
+        """unittest for LinterApp.__init__
         """
         def mock_get_option(self):
-            print('called Base.get_editor_option')
+            print('called LinterApp.get_editor_option')
         def mock_blacklist(self):
-            print('called Base.build_blacklist_if_needed')
+            print('called LinterApp.build_blacklist_if_needed')
         def mock_set_mode(self, *args):
-            print('called Base.set_mode with args', args)
+            print('called LinterApp.set_mode with args', args)
             return 'xxx'
         def mock_set_parameters(self, *args):
-            print('called Base.set_parameters with args', args)
-        monkeypatch.setattr(testee.Base, 'get_editor_option', mock_get_option)
-        monkeypatch.setattr(testee.Base, 'build_blacklist_if_needed', mock_blacklist)
-        monkeypatch.setattr(testee.Base, 'set_mode', mock_set_mode)
-        monkeypatch.setattr(testee.Base, 'set_parameters', mock_set_parameters)
-        monkeypatch.setattr(testee.gui, 'MainGui', MockMainGui)
-        testobj = testee.Base({'args': 'dict'})
+            print('called LinterApp.set_parameters with args', args)
+        monkeypatch.setattr(testee.LinterApp, 'get_editor_option', mock_get_option)
+        monkeypatch.setattr(testee.LinterApp, 'build_blacklist_if_needed', mock_blacklist)
+        monkeypatch.setattr(testee.LinterApp, 'set_mode', mock_set_mode)
+        monkeypatch.setattr(testee.LinterApp, 'set_parameters', mock_set_parameters)
+        monkeypatch.setattr(testee.gui, 'LinterGui', MockLinterGui)
+        testobj = testee.LinterApp({'args': 'dict'})
         assert testobj.title == "Albert's linter GUI frontend"
         assert testobj.iconame == testee.iconame
         assert testobj.fouttitel == testobj.title + "- fout"
@@ -201,15 +201,15 @@ class TestBase:
         assert testobj._words == ('woord', 'woord', 'spec', 'pad', )
         assert testobj._optkeys == ("subdirs", "fromrepo")
         assert capsys.readouterr().out == (
-            "called Base.get_editor_option\n"
-            "called Base.build_blacklist_if_needed\n"
-            "called Base.set_mode with args ({'args': 'dict'},)\n"
-            "called Base.set_parameters with args ('xxx',)\n"
-            f"called MainGui.__init__ with args () {{'master': {testobj}}}\n"
-            "called MainGui.setup_screen\n")
+            "called LinterApp.get_editor_option\n"
+            "called LinterApp.build_blacklist_if_needed\n"
+            "called LinterApp.set_mode with args ({'args': 'dict'},)\n"
+            "called LinterApp.set_parameters with args ('xxx',)\n"
+            f"called LinterGui.__init__ with args () {{'master': {testobj}}}\n"
+            "called LinterGui.setup_screen\n")
 
     def test_set_mode(self, monkeypatch, capsys):
-        """unittest for Base.set_mode
+        """unittest for LinterApp.set_mode
         """
         def mock_get(name):
             print(f"called settings.get_project_dir with arg '{name}")
@@ -256,10 +256,10 @@ class TestBase:
         assert capsys.readouterr().out == ""
 
     def test_set_parameters(self, monkeypatch, capsys):
-        """unittest for Base.set_parameters
+        """unittest for LinterApp.set_parameters
         """
         def mock_readini(*args):
-            print('called Base.readini with args', args)
+            print('called LinterApp.readini with args', args)
         def mock_expand(arg):
             print('called path.expanduser with arg', arg)
             return arg
@@ -284,20 +284,20 @@ class TestBase:
         assert capsys.readouterr().out == (
             "called path.expanduser with arg pathname\n"
             "called path.resolve with arg pathname\n"
-            "called Base.readini with args (PosixPath('pathname'),)\n")
+            "called LinterApp.readini with args (PosixPath('pathname'),)\n")
         testobj.set_parameters('')
-        assert capsys.readouterr().out == "called Base.readini with args ()\n"
+        assert capsys.readouterr().out == "called LinterApp.readini with args ()\n"
         testobj.mode = testee.Mode.single.value
         testobj.set_parameters('pathname')
         assert capsys.readouterr().out == ("called path.resolve with arg pathname\n"
-                                           "called Base.readini with args (PosixPath('.'),)\n")
+                                           "called LinterApp.readini with args (PosixPath('.'),)\n")
         with pytest.raises(ValueError) as exc:
             testobj.set_parameters('')
         assert str(exc.value) == 'Need filename for application type "single"'
         testobj.mode = testee.Mode.multi.value
         testobj.set_parameters(['pathname'])
         assert capsys.readouterr().out == ("called testee.get_paths_from_file with arg pathname\n"
-                                           "called Base.readini with args ('',)\n")
+                                           "called LinterApp.readini with args ('',)\n")
         monkeypatch.setattr(testee, 'get_paths_from_file', mock_get_2)
         with pytest.raises(ValueError) as exc:
             testobj.set_parameters(['pathname'])
@@ -306,7 +306,7 @@ class TestBase:
         testobj.set_parameters(['path/name1', 'path/name2'])
         assert capsys.readouterr().out == (
                 "called testee.get_paths_from_file with arg pathname\n"
-                "called Base.readini with args ('path',)\n")
+                "called LinterApp.readini with args ('path',)\n")
         with pytest.raises(ValueError) as exc:
             testobj.set_parameters([])
         assert str(exc.value) == (
@@ -317,7 +317,7 @@ class TestBase:
         assert str(exc.value) == 'Execution mode could not be determined from input'
 
     def test_readini(self, monkeypatch, capsys, tmp_path):
-        """unittest for Base.readini
+        """unittest for LinterApp.readini
         """
         mock_iniloc = tmp_path / 'iniloc'
         def mock_get_iniloc(path):
@@ -389,7 +389,7 @@ class TestBase:
                                            f"called json.load with arg '{mock_iniloc / 'ofile'}'\n")
 
     def test_schrijfini(self, monkeypatch, capsys, tmp_path):
-        """unittest for Base.schrijfini
+        """unittest for LinterApp.schrijfini
         """
         mock_iniloc = tmp_path / 'iniloc'
         def mock_get_iniloc(path):
@@ -420,7 +420,7 @@ class TestBase:
                                            f" {mock_iniloc / 'ofile'} {{'indent': 4}}\n")
 
     def test_get_editor_option(self, monkeypatch, capsys, tmp_path):
-        """unittest for Base.get_editor_option
+        """unittest for LinterApp.get_editor_option
         """
         def mock_read(arg):
             print(f"called path.read with arg '{arg}'")
@@ -447,7 +447,7 @@ class TestBase:
         assert capsys.readouterr().out == f"called path.read with arg '{mock_edfile}'\n"
 
     def test_build_blacklist_if_needed(self, monkeypatch, capsys, tmp_path):
-        """unittest for Base.build_blacklist_if_needed
+        """unittest for LinterApp.build_blacklist_if_needed
         """
         original_open = testee.pathlib.Path.open
         def mock_open(arg):
@@ -460,7 +460,7 @@ class TestBase:
             print(f"called json.load with arg '{arg.name}'")
             return {'x': 'y'}
         def mock_update():
-            print('called Base.update_blacklistfile')
+            print('called LinterApp.update_blacklistfile')
         blacklistfile = tmp_path / 'blacklistfile'
         blacklistfile.write_text('blacklisted items')
         monkeypatch.setattr(testee.pathlib.Path, 'open', mock_open)
@@ -477,10 +477,10 @@ class TestBase:
         testobj.build_blacklist_if_needed()
         assert testobj.blacklist == {'initial': 'blacklist'}
         assert capsys.readouterr().out == ("called path.open with arg 'blacklistfile'\n"
-                                           "called Base.update_blacklistfile\n")
+                                           "called LinterApp.update_blacklistfile\n")
 
     def test_update_blacklistfile(self, monkeypatch, capsys, tmp_path):
-        """unittest for Base.update_blacklistfile
+        """unittest for LinterApp.update_blacklistfile
         """
         original_open = testee.pathlib.Path.open
         def mock_open(arg, mode):
@@ -501,7 +501,7 @@ class TestBase:
             f"called json.dump with args 'blacklistdata' '{blacklistfile}' {{'indent': 4}}\n")
 
     def test_doe(self, monkeypatch, capsys, tmp_path):
-        """unittest for Base.doe
+        """unittest for LinterApp.doe
         """
         def mock_check_radio(*args):
             print('called Gui.get_radiogroup_checked with args', args)
@@ -523,39 +523,39 @@ class TestBase:
         def mock_meld_info(*args):
             print('called Gui.meld_info with args', args)
         def mock_check_type(*args):
-            print('called Base.check_type with args', args)
+            print('called LinterApp.check_type with args', args)
             return 'check_type failed'
         def mock_check_type_2(*args):
-            print('called Base.check_type with args', args)
+            print('called LinterApp.check_type with args', args)
             return ''
         def mock_check_linter(*args):
-            print('called Base.check_linter with args', args)
+            print('called LinterApp.check_linter with args', args)
             return 'check_linter failed'
         def mock_check_linter_2(*args):
-            print('called Base.check_linter with args', args)
+            print('called LinterApp.check_linter with args', args)
             return ''
         def mock_checkpath(*args):
-            print('called Base.checkpath with args', args)
+            print('called LinterApp.checkpath with args', args)
             return 'checkpath failed'
         def mock_checkpath_2(*args):
-            print('called Base.checkpath with args', args)
+            print('called LinterApp.checkpath with args', args)
             return ''
         def mock_checkrepo(*args):
-            print('called Base.checkrepo with args', args)
+            print('called LinterApp.checkrepo with args', args)
             return 'checkrepo failed'
         def mock_checkrepo_2(*args):
-            print('called Base.checkrepo with args', args)
+            print('called LinterApp.checkrepo with args', args)
             return ''
         def mock_checksubs(*args):
-            print('called Base.checksubs with args', args)
+            print('called LinterApp.checksubs with args', args)
         def mock_check_quiet_options(*args):
-            print('called Base.check_quiet_options with args', args)
+            print('called LinterApp.check_quiet_options with args', args)
             return 'check_quiet_options failed'
         def mock_check_quiet_options_2(*args):
-            print('called Base.check_quiet_options with args', args)
+            print('called LinterApp.check_quiet_options with args', args)
             return ''
         def mock_schrijf(loc):
-            print(f"called Base.schrijfini with arg '{loc}'")
+            print(f"called LinterApp.schrijfini with arg '{loc}'")
         def mock_init(self, **p):
             print('called Linter.__init__ with args', p)
             self.ok = False
@@ -569,10 +569,10 @@ class TestBase:
             self.ok = True
             self.filenames = [target]
         def mock_determine():
-            print('called Base.mock_determine_items_to_skip')
+            print('called LinterApp.mock_determine_items_to_skip')
             return True
         def mock_determine_2():
-            print('called Base.mock_determine_items_to_skip')
+            print('called LinterApp.mock_determine_items_to_skip')
             return False
         def mock_is_lintable(arg):
             print(f'called is_lintable with arg {arg}')
@@ -612,16 +612,16 @@ class TestBase:
         testobj.doe()
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.meld_fout with args ('check_type failed',)\n")
         testobj.check_type = mock_check_type_2
         testobj.check_linter = mock_check_linter
         testobj.doe()
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.meld_fout with args ('check_linter failed',)\n")
         testobj.check_linter = mock_check_linter_2
         testobj.checkpath = mock_checkpath
@@ -629,11 +629,11 @@ class TestBase:
         testobj.doe()
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkpath with args ('combobox',)\n"
+            "called LinterApp.checkpath with args ('combobox',)\n"
             "called Gui.meld_fout with args ('checkpath failed',)\n")
         testobj.checkpath = mock_checkpath_2
         testobj.checkrepo = mock_checkrepo
@@ -641,14 +641,14 @@ class TestBase:
         testobj.doe()
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkpath with args ('combobox',)\n"
+            "called LinterApp.checkpath with args ('combobox',)\n"
             "called Gui.get_checkbox_value with args ('repo',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called LinterApp.checkrepo with args ('checkbox', 'combobox')\n"
             "called Gui.meld_fout with args ('checkrepo failed',)\n")
         testobj.checkrepo = mock_checkrepo_2
         testobj.checksubs = mock_checksubs
@@ -663,20 +663,20 @@ class TestBase:
         assert not testobj.p['follow_symlinks']
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkpath with args ('combobox',)\n"
+            "called LinterApp.checkpath with args ('combobox',)\n"
             "called Gui.get_checkbox_value with args ('repo',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called LinterApp.checkrepo with args ('checkbox', 'combobox')\n"
             "called Gui.get_checkbox_value with args ('subdirs',)\n"
             "called Gui.get_checkbox_value with args ('links',)\n"
             "called Gui.get_spinbox_value with args ('depth',)\n"
-            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called LinterApp.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
             "called Gui.get_checkbox_value with args ('quiet',)\n"
-            "called Base.check_quiet_options with args ()\n"
+            "called LinterApp.check_quiet_options with args ()\n"
             "called Gui.meld_fout with args ('check_quiet_options failed',)\n")
         testobj.mode = testee.Mode.single.value
         testobj.p['follow_symlinks'] = False
@@ -684,11 +684,11 @@ class TestBase:
         assert testobj.p['follow_symlinks']
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.get_checkbox_value with args ('quiet',)\n"
-            "called Base.check_quiet_options with args ()\n"
+            "called LinterApp.check_quiet_options with args ()\n"
             "called Gui.meld_fout with args ('check_quiet_options failed',)\n")
         testobj.p['filelist'] = [tmp_path]  # gegearandeerd een directory
         testobj.p['follow_symlinks'] = False
@@ -696,15 +696,15 @@ class TestBase:
         assert not testobj.p['follow_symlinks']
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.get_checkbox_value with args ('subdirs',)\n"
             "called Gui.get_checkbox_value with args ('links',)\n"
             "called Gui.get_spinbox_value with args ('depth',)\n"
-            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called LinterApp.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
             "called Gui.get_checkbox_value with args ('quiet',)\n"
-            "called Base.check_quiet_options with args ()\n"
+            "called LinterApp.check_quiet_options with args ()\n"
             "called Gui.meld_fout with args ('check_quiet_options failed',)\n")
 
         testobj.p['filelist'] = [target]
@@ -713,11 +713,11 @@ class TestBase:
         assert not testobj.p['follow_symlinks']
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.get_checkbox_value with args ('quiet',)\n"
-            "called Base.check_quiet_options with args ()\n"
+            "called LinterApp.check_quiet_options with args ()\n"
             "called Gui.meld_fout with args ('check_quiet_options failed',)\n")
 
         testobj.check_quiet_options = mock_check_quiet_options_2
@@ -733,21 +733,21 @@ class TestBase:
         assert testobj.p['filelist'] == [target]
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkpath with args ('combobox',)\n"
+            "called LinterApp.checkpath with args ('combobox',)\n"
             "called Gui.get_checkbox_value with args ('repo',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called LinterApp.checkrepo with args ('checkbox', 'combobox')\n"
             "called Gui.get_checkbox_value with args ('subdirs',)\n"
             "called Gui.get_checkbox_value with args ('links',)\n"
             "called Gui.get_spinbox_value with args ('depth',)\n"
-            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called LinterApp.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
             "called Gui.get_checkbox_value with args ('quiet',)\n"
-            "called Base.check_quiet_options with args ()\n"
-            f"called Base.schrijfini with arg '{tmp_path}'\n"
+            "called LinterApp.check_quiet_options with args ()\n"
+            f"called LinterApp.schrijfini with arg '{tmp_path}'\n"
             f"called Linter.__init__ with args {{'filelist': [{target!r}],"
             " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
             "called Gui.meld_info with args ('Something went\\nwrong',)\n")
@@ -759,20 +759,20 @@ class TestBase:
         assert testobj.p['filelist'] == [target]
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkpath with args ('combobox',)\n"
+            "called LinterApp.checkpath with args ('combobox',)\n"
             "called Gui.get_checkbox_value with args ('repo',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called LinterApp.checkrepo with args ('checkbox', 'combobox')\n"
             "called Gui.get_checkbox_value with args ('subdirs',)\n"
             "called Gui.get_checkbox_value with args ('links',)\n"
             "called Gui.get_spinbox_value with args ('depth',)\n"
-            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called LinterApp.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
             "called Gui.get_checkbox_value with args ('quiet',)\n"
-            "called Base.check_quiet_options with args ()\n"
+            "called LinterApp.check_quiet_options with args ()\n"
             f"called Linter.__init__ with args {{'filelist': [{target!r}],"
             " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
             "called Gui.meld_info with args ('Something went\\nwrong',)\n")
@@ -786,21 +786,21 @@ class TestBase:
         assert testobj.p['filelist'] == [target]
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkpath with args ('combobox',)\n"
+            "called LinterApp.checkpath with args ('combobox',)\n"
             "called Gui.get_checkbox_value with args ('repo',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called LinterApp.checkrepo with args ('checkbox', 'combobox')\n"
             "called Gui.get_checkbox_value with args ('subdirs',)\n"
             "called Gui.get_checkbox_value with args ('links',)\n"
             "called Gui.get_spinbox_value with args ('depth',)\n"
-            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called LinterApp.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
             "called Gui.get_checkbox_value with args ('quiet',)\n"
-            "called Base.check_quiet_options with args ()\n"
-            f"called Base.schrijfini with arg '{tmp_path}'\n"
+            "called LinterApp.check_quiet_options with args ()\n"
+            f"called LinterApp.schrijfini with arg '{tmp_path}'\n"
             f"called Linter.__init__ with args {{'filelist': [{target!r}],"
             " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
             "called Gui.meld_info with args ('Geen bestanden gevonden',)\n")
@@ -813,21 +813,21 @@ class TestBase:
         assert testobj.p['filelist'] == [target]
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkpath with args ('combobox',)\n"
+            "called LinterApp.checkpath with args ('combobox',)\n"
             "called Gui.get_checkbox_value with args ('repo',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called LinterApp.checkrepo with args ('checkbox', 'combobox')\n"
             "called Gui.get_checkbox_value with args ('subdirs',)\n"
             "called Gui.get_checkbox_value with args ('links',)\n"
             "called Gui.get_spinbox_value with args ('depth',)\n"
-            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called LinterApp.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
             "called Gui.get_checkbox_value with args ('quiet',)\n"
-            "called Base.check_quiet_options with args ()\n"
-            f"called Base.schrijfini with arg '{tmp_path}'\n"
+            "called LinterApp.check_quiet_options with args ()\n"
+            f"called LinterApp.schrijfini with arg '{tmp_path}'\n"
             f"called Linter.__init__ with args {{'filelist': [{target!r}],"
             " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
             f"called is_lintable with arg {target}\n"
@@ -841,24 +841,24 @@ class TestBase:
         assert testobj.p['filelist'] == [target.parent]
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkpath with args ('combobox',)\n"
+            "called LinterApp.checkpath with args ('combobox',)\n"
             "called Gui.get_checkbox_value with args ('repo',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkrepo with args ('checkbox', 'combobox')\n"
+            "called LinterApp.checkrepo with args ('checkbox', 'combobox')\n"
             "called Gui.get_checkbox_value with args ('subdirs',)\n"
             "called Gui.get_checkbox_value with args ('links',)\n"
             "called Gui.get_spinbox_value with args ('depth',)\n"
-            "called Base.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
+            "called LinterApp.checksubs with args ('checkbox', 'checkbox', 'spinbox')\n"
             "called Gui.get_checkbox_value with args ('quiet',)\n"
-            "called Base.check_quiet_options with args ()\n"
-            f"called Base.schrijfini with arg '{tmp_path.parent}'\n"
+            "called LinterApp.check_quiet_options with args ()\n"
+            f"called LinterApp.schrijfini with arg '{tmp_path.parent}'\n"
             f"called Linter.__init__ with args {{'filelist': [{tmp_path!r}],"
             " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
-            "called Base.mock_determine_items_to_skip\n")
+            "called LinterApp.mock_determine_items_to_skip\n")
         testobj.p['filelist'] = [target, tmp_path]
         testobj.gui.get_checkbox_value = mock_check_check_2
         testobj.determine_items_to_skip = mock_determine_2
@@ -869,23 +869,23 @@ class TestBase:
         assert testobj.p['filelist'] == [target, target.parent]
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkpath with args ('combobox',)\n"
+            "called LinterApp.checkpath with args ('combobox',)\n"
             "called Gui.get_checkbox_value with args ('repo',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkrepo with args (False, 'combobox')\n"
+            "called LinterApp.checkrepo with args (False, 'combobox')\n"
             "called Gui.get_checkbox_value with args ('subdirs',)\n"
             "called Gui.get_checkbox_value with args ('links',)\n"
             "called Gui.get_spinbox_value with args ('depth',)\n"
-            "called Base.checksubs with args (False, False, 'spinbox')\n"
+            "called LinterApp.checksubs with args (False, False, 'spinbox')\n"
             "called Gui.get_checkbox_value with args ('quiet',)\n"
-            f"called Base.schrijfini with arg '{target.parent}'\n"
+            f"called LinterApp.schrijfini with arg '{target.parent}'\n"
             f"called Linter.__init__ with args {{'filelist': [{target!r}, {tmp_path!r}],"
             " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
-            "called Base.mock_determine_items_to_skip\n"
+            "called LinterApp.mock_determine_items_to_skip\n"
             f"called is_lintable with arg {target}\n"
             "called Gui.execute_action\n"
             f"called Results.__init__ with args ({testobj.gui}, 'common part')\n")
@@ -897,31 +897,31 @@ class TestBase:
         assert testobj.p['filelist'] == [target, target.parent]
         assert capsys.readouterr().out == (
             "called Gui.get_radiogroup_checked with args ('check-options',)\n"
-            "called Base.check_type with args ('radiobutton',)\n"
+            "called LinterApp.check_type with args ('radiobutton',)\n"
             "called Gui.get_radiogroup_checked with args ('linters',)\n"
-            "called Base.check_linter with args ('radiobutton',)\n"
+            "called LinterApp.check_linter with args ('radiobutton',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkpath with args ('combobox',)\n"
+            "called LinterApp.checkpath with args ('combobox',)\n"
             "called Gui.get_checkbox_value with args ('repo',)\n"
             "called Gui.get_combobox_textvalue with args ('dir',)\n"
-            "called Base.checkrepo with args (False, 'combobox')\n"
+            "called LinterApp.checkrepo with args (False, 'combobox')\n"
             "called Gui.get_checkbox_value with args ('subdirs',)\n"
             "called Gui.get_checkbox_value with args ('links',)\n"
             "called Gui.get_spinbox_value with args ('depth',)\n"
-            "called Base.checksubs with args (False, False, 'spinbox')\n"
+            "called LinterApp.checksubs with args (False, False, 'spinbox')\n"
             "called Gui.get_checkbox_value with args ('quiet',)\n"
-            f"called Base.schrijfini with arg '{target.parent}'\n"
+            f"called LinterApp.schrijfini with arg '{target.parent}'\n"
             f"called Linter.__init__ with args {{'filelist': [{target!r}, {tmp_path!r}],"
             " 'follow_symlinks': False, 'blacklist': {'black': 'list'}}\n"
-            "called Base.mock_determine_items_to_skip\n"
+            "called LinterApp.mock_determine_items_to_skip\n"
             f"called is_lintable with arg {target}\n"
             "called Gui.meld_info with args ('Geen lintbare bestanden gevonden',)\n")
 
     def test_check_loc(self, monkeypatch, capsys, tmp_path):
-        """unittest for Base.check_loc
+        """unittest for LinterApp.check_loc
         """
         def mock_readini(arg):
-            print(f'called Base.readini with arg {arg}')
+            print(f'called LinterApp.readini with arg {arg}')
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.p = {"subdirs": "x", "fromrepo": "y"}
         testobj.readini = mock_readini
@@ -936,12 +936,12 @@ class TestBase:
         assert capsys.readouterr().out == ""
         testobj.check_loc(txt)
         assert capsys.readouterr().out == (
-            f"called Base.readini with arg {txt}\n"
-            "called MainGui.set_checkbox_value with args ('subs', 'x')\n"
-            "called MainGui.set_checkbox_value with args ('repo', 'y')\n")
+            f"called LinterApp.readini with arg {txt}\n"
+            "called LinterGui.set_checkbox_value with args ('subs', 'x')\n"
+            "called LinterGui.set_checkbox_value with args ('repo', 'y')\n")
 
     def test_check_type(self, monkeypatch, capsys):
-        """unittest for Base.check_type
+        """unittest for LinterApp.check_type
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.p = {'mode': None}
@@ -951,7 +951,7 @@ class TestBase:
         assert testobj.p["mode"] == "x"
 
     def test_check_linter(self, monkeypatch, capsys):
-        """unittest for Base.check_linter
+        """unittest for LinterApp.check_linter
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.p = {'linter': None}
@@ -961,7 +961,7 @@ class TestBase:
         assert testobj.p["linter"] == "x"
 
     def test_checkpath(self, monkeypatch, capsys, tmp_path):
-        """unittest for Base.checkpath
+        """unittest for LinterApp.checkpath
         """
         def mock_expand(arg):
             print('called path.expanduser')
@@ -993,7 +993,7 @@ class TestBase:
         assert capsys.readouterr().out == ("called path.expanduser\ncalled path.resolve\n")
 
     def test_checksubs(self, monkeypatch, capsys):
-        """unittest for Base.checksubs
+        """unittest for LinterApp.checksubs
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.s = 'xxx'
@@ -1010,7 +1010,7 @@ class TestBase:
         assert testobj.p['maxdepth'] == 3
 
     def test_check_quiet_options(self, monkeypatch, capsys):
-        """unittest for Base.check_quiet_options
+        """unittest for LinterApp.check_quiet_options
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.quiet_options = {}
@@ -1029,7 +1029,7 @@ class TestBase:
         assert testobj.check_quiet_options() == "Please configure all options for quiet mode"
 
     def test_checkrepo(self, monkeypatch, capsys, tmp_path):
-        """unittest for Base.checkrepo
+        """unittest for LinterApp.checkrepo
         """
         def mock_run(*args, **kwargs):
             print('called subprocess.run with args', args, kwargs)
@@ -1082,7 +1082,7 @@ class TestBase:
             f"called is_lintable with arg '{repoloc}/zzzz'\n")
 
     def test_configure_quiet(self, monkeypatch, capsys):
-        """unittest for Base.configure_quiet
+        """unittest for LinterApp.configure_quiet
         """
         def mock_show(*args):
             print('called gui.show_dialog with args', args)
@@ -1113,7 +1113,7 @@ class TestBase:
             f"called gui.show_dialog with args ({testee.gui.QuietOptions}, {testobj.gui})\n")
 
     def test_configure_filter(self, monkeypatch, capsys):
-        """unittest for Base.configure_filter
+        """unittest for LinterApp.configure_filter
         """
         def mock_show(*args):
             print('called gui.show_dialog with args', args)
@@ -1122,7 +1122,7 @@ class TestBase:
             print('called gui.show_dialog with args', args)
             return True
         def mock_update():
-            print('called Base.update_blacklistfile')
+            print('called LinterApp.update_blacklistfile')
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show)
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.update_blacklistfile = mock_update
@@ -1133,10 +1133,10 @@ class TestBase:
         testobj.configure_filter()
         assert capsys.readouterr().out == (
             f"called gui.show_dialog with args ({testee.gui.FilterOptions}, {testobj.gui})\n"
-            "called Base.update_blacklistfile\n")
+            "called LinterApp.update_blacklistfile\n")
 
     def test_get_output_filename(self, monkeypatch, capsys):
-        """unittest for Base.get_output_filename
+        """unittest for LinterApp.get_output_filename
         """
         fixdate = testee.datetime.datetime(2000, 1, 1)
         class mock_datetime:
@@ -1155,30 +1155,30 @@ class TestBase:
         assert testobj.get_output_filename(name, 'zzzxxx') == "test/zzz-yyy-20000101000000"
 
     def test_configure_linter(self, monkeypatch, capsys):
-        """unittest for Base.configure_linter
+        """unittest for LinterApp.configure_linter
         """
         def mock_check(*args):
             nonlocal counter
-            print('called MainGui.get_radiogroup_checked with args', args)
+            print('called LinterGui.get_radiogroup_checked with args', args)
             return ''
         counter = 0
         def mock_check_2(*args):
             nonlocal counter
-            print('called MainGui.get_radiogroup_checked with args', args)
+            print('called LinterGui.get_radiogroup_checked with args', args)
             counter += 1
             if counter == 1:
                 return 'xxx'
             return ''
         def mock_check_3(*args):
             nonlocal counter
-            print('called MainGui.get_radiogroup_checked with args', args)
+            print('called LinterGui.get_radiogroup_checked with args', args)
             counter += 1
             if counter == 1:
                 return 'xxx'
             return 'default'
         def mock_check_4(*args):
             nonlocal counter
-            print('called MainGui.get_radiogroup_checked with args', args)
+            print('called LinterGui.get_radiogroup_checked with args', args)
             counter += 1
             if counter == 1:
                 return 'xxx'
@@ -1193,29 +1193,29 @@ class TestBase:
         testobj.editor_option = (['aa'], '{} bb', 'cc')
         testobj.gui.get_radiogroup_checked = mock_check
         testobj.configure_linter()
-        assert capsys.readouterr().out == "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
+        assert capsys.readouterr().out == "called LinterGui.get_radiogroup_checked with args ('qqq',)\n"
         testobj.gui.get_radiogroup_checked = mock_check_2
         testobj.configure_linter()
         assert capsys.readouterr().out == (
-            "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
-            "called MainGui.get_radiogroup_checked with args ('check',)\n")
+            "called LinterGui.get_radiogroup_checked with args ('qqq',)\n"
+            "called LinterGui.get_radiogroup_checked with args ('check',)\n")
         counter = 0
         testobj.gui.get_radiogroup_checked = mock_check_3
         testobj.configure_linter()
         assert capsys.readouterr().out == (
-            "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
-            "called MainGui.get_radiogroup_checked with args ('check',)\n")
+            "called LinterGui.get_radiogroup_checked with args ('qqq',)\n"
+            "called LinterGui.get_radiogroup_checked with args ('check',)\n")
         counter = 0
         testobj.gui.get_radiogroup_checked = mock_check_4
         # breakpoint()
         testobj.configure_linter()
         assert capsys.readouterr().out == (
-            "called MainGui.get_radiogroup_checked with args ('qqq',)\n"
-            "called MainGui.get_radiogroup_checked with args ('check',)\n"
+            "called LinterGui.get_radiogroup_checked with args ('qqq',)\n"
+            "called LinterGui.get_radiogroup_checked with args ('check',)\n"
             "called subprocess.run with args (['aa', 'ss bb'],)\n")
 
     def test_determine_items_to_skip(self, monkeypatch, capsys):
-        """unittest for Base.determine_items_to_skip
+        """unittest for LinterApp.determine_items_to_skip
         """
         class MockCheckBox:
             """stub
@@ -1225,7 +1225,7 @@ class TestBase:
             def __str__(self):
                 return self._value
         def mock_remove():
-            print('called Base.remove_files_in_selected_dirs')
+            print('called LinterApp.remove_files_in_selected_dirs')
         counter = 0
         def mock_get_value(arg):
             print(f"called Gui.get_checkbox_value with arg '{arg}'")
@@ -1295,7 +1295,7 @@ class TestBase:
             "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
             "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
             f"called gui.show_dialog with args ({testobj.gui},) {{'files': False}}\n"
-            "called Base.remove_files_in_selected_dirs\n")
+            "called LinterApp.remove_files_in_selected_dirs\n")
         # idem; show_dialog gecanceld
         counter = 0
         monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_2)
@@ -1330,12 +1330,12 @@ class TestBase:
             "called Gui.get_checkbox_value with arg 'ask_skipdirs'\n"
             "called Gui.get_checkbox_value with arg 'ask_skipfiles'\n"
             f"called gui.show_dialog with args ({testobj.gui},) {{'files': False}}\n"
-            "called Base.remove_files_in_selected_dirs\n"
+            "called LinterApp.remove_files_in_selected_dirs\n"
             f"called gui.show_dialog with args ({testobj.gui},) {{}}\n"
             f"called gui.show_dialog with args ({testobj.gui},) {{'files': False}}\n")
 
     def test_remove_files_in_selected_dirs(self, monkeypatch, capsys):
-        """unittest for Base.determine_items_to_skip
+        """unittest for LinterApp.determine_items_to_skip
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.do_checks = types.SimpleNamespace(filenames=['aaa/xxx',

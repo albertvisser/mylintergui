@@ -3,7 +3,7 @@
 Argument parser for GUI frontend to various static code analysis tools
 """
 import argparse
-from app.main import Base
+from app.main import LinterApp
 from app.config import cmddict, checktypes
 
 parser = argparse.ArgumentParser()
@@ -26,4 +26,4 @@ parser.add_argument('-r', '--repo-files-only', dest='r', metavar='NAME',
                     help='check only tracked files for specified repository')
 parser.add_argument('-s', '--skip-screen', dest='s', action='store_true',
                     help='skip initial screen and use default options')
-Base(args=parser.parse_args())
+LinterApp(args=parser.parse_args())

@@ -40,7 +40,7 @@ HERE = pathlib.Path(__file__).parent
 iconame = str(HERE / "lintergui.png")
 
 
-class Base:
+class LinterApp:
     """Applicatielogica klasse voor de linter applicatie
     Gebruikt (qt_)gui voor de user interface en exec voor de uitvoering van het linten
     """
@@ -73,7 +73,7 @@ class Base:
         self.get_editor_option()
         self.build_blacklist_if_needed()
         self.set_parameters(self.set_mode(args))
-        self.gui = gui.MainGui(master=self)
+        self.gui = gui.LinterGui(master=self)
         self.gui.setup_screen()
 
     def get_editor_option(self):

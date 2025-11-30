@@ -54,7 +54,7 @@ called Signal.connect with args ({testobj.accept},)
 called HBox.addWidget with arg MockPushButton
 called HBox.addStretch
 called VBox.addLayout with arg MockHBoxLayout
-called Dialog.setLayout
+called Dialog.setLayout with arg MockVBoxLayout
 """
 o_quiet = """\
 called Dialog.__init__ with args {parent} () {{}}
@@ -113,7 +113,7 @@ called Signal.connect with args ({testobj.accept},)
 called HBox.addWidget with arg MockPushButton
 called HBox.addStretch
 called VBox.addLayout with arg MockHBoxLayout
-called Dialog.setLayout
+called Dialog.setLayout with arg MockVBoxLayout
 """
 o_quiet_multi = "called RadioButton.setChecked with arg `True`\n"
 o_quiet_single = "called RadioButton.setChecked with arg `True`\n"
@@ -128,7 +128,7 @@ called Label.__init__ with args ('Selecteer de bestanden die je *niet* wilt verw
 called HBox.__init__
 called HBox.addWidget with arg MockLabel
 called VBox.addLayout with arg MockHBoxLayout
-called CheckBox.__init__ with text 'Select/Unselect All'
+called CheckBox.__init__ with args ('Select/Unselect All', {testobj})
 called Signal.connect with args ({testobj.select_all},)
 called HBox.__init__
 called HBox.addSpacing
@@ -141,11 +141,11 @@ called HBox.addSpacing
 called VBox.addLayout with arg MockHBoxLayout
 called Frame.__init__
 called VBox.__init__
-called CheckBox.__init__ with text 'xxx'
+called CheckBox.__init__ with args ('xxx', {testobj.frm})
 called HBox.__init__
 called HBox.addWidget with arg MockCheckBox
 called VBox.addLayout with arg MockHBoxLayout
-called CheckBox.__init__ with text 'yyy'
+called CheckBox.__init__ with args ('yyy', {testobj.frm})
 called HBox.__init__
 called HBox.addWidget with arg MockCheckBox
 called VBox.addLayout with arg MockHBoxLayout
@@ -165,7 +165,7 @@ called HBox.addWidget with arg MockPushButton
 called HBox.addWidget with arg MockPushButton
 called HBox.addStretch
 called VBox.addLayout with arg MockHBoxLayout
-called Dialog.setLayout
+called Dialog.setLayout with arg MockVBoxLayout
 """
 o_results_start = """\
 called Dialog.__init__ with args {testobj.parent} () {{}}
@@ -218,7 +218,7 @@ called Signal.connect with args ({testobj.to_clipboard},)
 called HBox.addWidget with arg MockPushButton
 called HBox.addStretch
 called VBox.addLayout with arg MockHBoxLayout
-called Dialog.setLayout
+called Dialog.setLayout with arg MockVBoxLayout
 called Widget.resize with args (724, 480)
 called Dialog.exec
 """
@@ -315,7 +315,7 @@ called Grid.addLayout with arg MockHBoxLayout at (4, 1)
 o_main_3 = """\
 called PushButton.__init__ with args ('&Zoek',) {{}}
 called Signal.connect with args ({testobj.zoekdir},)
-called Base.add_combobox_line with args ('In directory:', ['aaa']) {{'initial': '{fname}', 'button': {testobj.zoek}}}
+called LinterApp.add_combobox_line with args ('In directory:', ['aaa']) {{'initial': '{fname}', 'button': {testobj.zoek}}}
 called ComboBox.__init__
 called ComboBox.setCompleter with arg None
 called Signal.connect with args ({testobj.master.check_loc},)
@@ -330,33 +330,33 @@ called Grid.addWidget with arg MockListBox at (5, 0, 1, 3)
 o_main_5 = """\
 called PushButton.__init__ with args ('Configure', {testobj}) {{}}
 called Signal.connect with args ({testobj.master.configure_filter},)
-called Base.add_checkbox_line with args ('Use global whitelist/blacklist',) {{'toggle': True, 'button': {testobj.conf_filter}}}
+called LinterApp.add_checkbox_line with args ('Use global whitelist/blacklist',) {{'toggle': True, 'button': {testobj.conf_filter}}}
 """
 o_main_6 = """\
 called CheckBox.__init__
-called Base.add_checkbox_line with args ('Check repository files only (also does subdirectories)', False) {{}}
+called LinterApp.add_checkbox_line with args ('Check repository files only (also does subdirectories)', False) {{}}
 called CheckBox.__init__
 """
 o_main_6a = """\
 called CheckBox.__init__
 """
 o_main_7 = """\
-called Base.add_checkbox_line with args ('{extra}ook subdirectories doorzoeken', False) {{}}
+called LinterApp.add_checkbox_line with args ('{extra}ook subdirectories doorzoeken', False) {{}}
 called CheckBox.__init__
 called SpinBox.__init__
 called SpinBox.setMinimum with arg '-1'
 called SpinBox.setValue with arg '5'
-called Base.add_checkbox_line with args ('symlinks volgen - max. diepte (-1 is alles):',) {{'spinner': {testobj.vraag_diepte}}}
+called LinterApp.add_checkbox_line with args ('symlinks volgen - max. diepte (-1 is alles):',) {{'spinner': {testobj.vraag_diepte}}}
 called CheckBox.__init__
-called Base.add_checkbox_line with args ('selecteer (sub)directories om over te slaan',) {{}}
+called LinterApp.add_checkbox_line with args ('selecteer (sub)directories om over te slaan',) {{}}
 called CheckBox.__init__
-called Base.add_checkbox_line with args ('selecteer bestanden om over te slaan',) {{}}
+called LinterApp.add_checkbox_line with args ('selecteer bestanden om over te slaan',) {{}}
 called CheckBox.__init__
 """
 o_main_end = """\
 called PushButton.__init__ with args ('Configure', {testobj}) {{}}
 called Signal.connect with args ({testobj.master.configure_quiet},)
-called Base.add_checkbox_line with args ('Output to file(s) directly',) {{'toggle': False, 'button': {testobj.conf_quiet}}}
+called LinterApp.add_checkbox_line with args ('Output to file(s) directly',) {{'toggle': False, 'button': {testobj.conf_quiet}}}
 called CheckBox.__init__
 called HBox.__init__
 called HBox.addStretch
@@ -370,12 +370,12 @@ called HBox.addStretch
 called Grid.addLayout with arg MockHBoxLayout at ({row}, 0, 1, 2)
 called VBox.__init__
 called VBox.addLayout with arg MockGridLayout
-called MainGui.setLayout with arg MockVBoxLayout
+called LinterGui.setLayout with arg MockVBoxLayout
 called ButtonGroup.buttons
 called RadioButton.setFocus
-called MainGui.show
+called LinterGui.show
 """
-o_main_final = o_main_end + "called Base.doe\ncalled MainGui.close\n"
+o_main_final = o_main_end + "called LinterApp.doe\ncalled LinterGui.close\n"
 o_main_end += "called Application.exec\n"
 o_combo = """\
 called Label.__init__ with args ('label text',)
@@ -399,25 +399,25 @@ called HBox.addStretch
 called Grid.addLayout with arg MockHBoxLayout at ({row}, 1)
 """
 o_check = """\
-called CheckBox.__init__ with text 'text'
-called Grid.addWidget with arg MockCheckBox at ({row}, 1)
+called CheckBox.__init__ with args ('text', {testobj})
+called Grid.addWidget with arg MockCheckBox at ({testobj.row}, 1)
 """
 o_check2 = """\
 called HBox.__init__
-called CheckBox.__init__ with text 'text'
+called CheckBox.__init__ with args ('text', {testobj})
 called HBox.addWidget with arg MockCheckBox
 called HBox.addWidget with arg MockSpinBox
 called HBox.addStretch
-called Grid.addLayout with arg MockHBoxLayout at ({row}, 1)
+called Grid.addLayout with arg MockHBoxLayout at ({testobj.row}, 1)
 """
 o_check3 = """\
 called HBox.__init__
-called CheckBox.__init__ with text 'text'
+called CheckBox.__init__ with args ('text', {testobj})
 called CheckBox.toggle
 called HBox.addWidget with arg MockCheckBox
 called HBox.addWidget with arg MockPushButton
 called HBox.addStretch
-called Grid.addLayout with arg MockHBoxLayout at ({row}, 1)
+called Grid.addLayout with arg MockHBoxLayout at ({testobj.row}, 1)
 """
 
 
