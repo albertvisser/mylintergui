@@ -13,7 +13,7 @@ import json
 # import app.qtqui as gui
 from app import qtgui as gui
 from .exec import Linter
-from .config import Mode, checktypes  # , cmddict
+from .config import Mode, checktypes, cmddict, default_option, default_linter
 
 origpath = sys.path
 sys.path.insert(0, str(pathlib.Path.home() / 'bin'))
@@ -38,6 +38,8 @@ initial_blacklist = {
     'include_shebang': ['python', 'python3'], }
 HERE = pathlib.Path(__file__).parent
 iconame = str(HERE / "lintergui.png")
+TXTW = 200
+SEP = ', '
 
 
 class LinterApp:
@@ -74,7 +76,60 @@ class LinterApp:
         self.build_blacklist_if_needed()
         self.set_parameters(self.set_mode(args))
         self.gui = gui.LinterGui(master=self)
-        self.gui.setup_screen()
+        self.setup_screen()
+        self.gui.show()
+        if self.skip_screen:
+            self.doe()
+            self.gui.close()
+        else:
+            self.gui.go()
+
+    def setup_screen(self):
+        "build the display"
+        self.gui.start_display()
+        options = []
+        default = self.checking_type or default_option  # checktypes[default_option]
+        for checktype in checktypes:
+            options.append(('&' + checktype.title(), checktype == default))
+        self.check_options = self.gui.build_radiobutton_row('Type of check:', options)
+        options = []
+        default = self.linter_from_input or default_linter  # cmddict[default_linter]
+        for linter in cmddict:
+            options.append(('py&lint' if linter == 'pylint' else '&' + linter, linter == default))
+        self.linters = self.gui.build_radiobutton_block('Check using:', options)
+        if self.mode == Mode.standard.value:
+            initial = self.p['filelist'][0] if self.p['filelist'] else ''
+            self.vraag_dir = self.gui.add_combobox_row("In directory:", self._mru_items["dirs"],
+                                                       width=TXTW,
+                                                       initial=initial, callback=self.check_loc,
+                                                       button=("&Zoek", self.gui.zoekdir))
+        elif self.mode == Mode.single.value:
+            self.gui.show_single_mode_info('In file/directory:', self.p['filelist'][0])
+        else:
+            self.gui.show_multi_mode_info('In de volgende files/directories:', self.p['filelist'])
+        if self.mode != Mode.single.value:
+            self.vraag_filter = self.gui.add_checkbox_line(
+                    'Use global whitelist/blacklist', toggle=True,
+                    button=('Configure', self.configure_filter ))[0]
+        if self.mode == Mode.standard.value:
+            self.p['fromrepo'] = self.repo_only
+            self.vraag_repo = self.gui.add_checkbox_line(
+                'Check repository files only (also does subdirectories)', self.p['fromrepo'])[0]
+        if self.mode != Mode.single.value or os.path.isdir(self.p['filelist'][0]):
+            txt = "van geselecteerde directories " if self.mode == Mode.multi.value else ''
+            self.vraag_subs = self.gui.add_checkbox_line(
+                txt + "ook subdirectories doorzoeken", self.p["subdirs"])[0]
+            self.vraag_links, self.vraag_diepte = self.gui.add_checkbox_line(
+                    "symlinks volgen - max. diepte (-1 is onbeperkt):", spinner=(-1, 5))
+            self.ask_skipdirs = self.gui.add_checkbox_line(
+                    "selecteer (sub)directories om over te slaan")[0]
+            self.ask_skipfiles = self.gui.add_checkbox_line(
+                    "selecteer bestanden om over te slaan")[0]
+        self.vraag_quiet = self.gui.add_checkbox_line('Output to file(s) directly',
+                                                      toggle=self.dest_from_input,
+                                                      button=('Configure', self.configure_quiet))[0]
+        self.gui.add_buttons([('&Uitvoeren', self.doe), ('&Einde', self.gui.close)])
+        self.gui.finalize_display(self.linters)
 
     def get_editor_option(self):
         """determine which editor to use and how
@@ -206,27 +261,9 @@ class LinterApp:
 
     def doe(self):
         """Zoekactie uitvoeren en resultaatscherm tonen"""
-        mld = self.check_type(self.gui.get_radiogroup_checked(self.gui.check_options))
-        if not mld:
-            mld = self.check_linter(self.gui.get_radiogroup_checked(self.gui.linters))
-        if not mld and self.mode == Mode.standard.value:
-            mld = self.checkpath(self.gui.get_combobox_textvalue(self.gui.vraag_dir))
-
-        if not mld and self.mode == Mode.standard.value:  # and self.vraag_repo.isChecked():
-            mld = self.checkrepo(self.gui.get_checkbox_value(self.gui.vraag_repo),
-                                 self.gui.get_combobox_textvalue(self.gui.vraag_dir))
-        if not mld and (self.mode != Mode.single.value or os.path.isdir(self.p['filelist'][0])):
-            self.checksubs(self.gui.get_checkbox_value(self.gui.vraag_subs),
-                           self.gui.get_checkbox_value(self.gui.vraag_links),
-                           self.gui.get_spinbox_value(self.gui.vraag_diepte))
-        if not mld and (self.mode == Mode.single.value and os.path.islink(self.p['filelist'][0])):
-            self.p["follow_symlinks"] = True
-        if not mld and self.gui.get_checkbox_value(self.gui.vraag_quiet):
-            mld = self.check_quiet_options()
-        if mld:
+        if mld := self.check_screen_input():   # TODO: is this needed when we skip the screen?
             self.gui.meld_fout(mld)
             return
-
         if not self.skip_screen:
             loc = self.p.get('pad', '') or os.path.dirname(self.p['filelist'][0])
             self.schrijfini(loc)
@@ -235,26 +272,39 @@ class LinterApp:
         if not self.do_checks.ok:
             self.gui.meld_info('\n'.join(self.do_checks.rpt))
             return
-
-        if not self.do_checks.filenames:
-            self.gui.meld_info("Geen bestanden gevonden")
-            return
-
+        # if not self.do_checks.filenames:
+        #     self.gui.meld_info("Geen bestanden gevonden")
+        #     return
         if len(self.p['filelist']) > 1 or os.path.isdir(self.p['filelist'][0]):
             canceled = self.determine_items_to_skip()
             if canceled:
                 return
-
         self.do_checks.filenames = [x for x in self.do_checks.filenames if is_lintable(x)]
-        # self.do_checks_filenames = filter(is_lintable, self.fo_checks_filenames)
-
-        # nogmaals controle (misschien kan deze de eerste keer achterwege blijven?
         if not self.do_checks.filenames:
-            self.gui.meld_info("Geen lintbare bestanden gevonden")
+            self.gui.meld_info("Geen (lintbare) bestanden gevonden")
             return
-
         self.gui.execute_action()
-        gui.Results(self.gui, self.common_part)
+        gui.show_dialog(Results(self, self.common_part).gui)
+
+    def check_screen_input(self):
+        "validation of screen fields split off to lessen testing complexity"
+        mld = self.check_type(self.gui.get_radiogroup_checked(self.check_options))
+        mld = mld or self.check_linter(self.gui.get_radiogroup_checked(self.linters))
+        if self.mode == Mode.standard.value:
+            mld = mld or self.checkpath(self.gui.get_combobox_textvalue(self.vraag_dir))
+            mld = mld or self.checkrepo(self.gui.get_checkbox_value(self.vraag_repo),
+                                        self.gui.get_combobox_textvalue(self.vraag_dir))
+        if (self.mode != Mode.single.value or os.path.isdir(self.p['filelist'][0])) and not mld:
+            subdirs = self.gui.get_checkbox_value(self.vraag_subs)
+            if subdirs:
+                self.s += " en onderliggende directories"
+            self.p["subdirs"] = subdirs
+            self.p["follow_symlinks"] = self.gui.get_checkbox_value(self.vraag_links)
+            self.p["maxdepth"] = self.gui.get_spinbox_value(self.vraag_diepte)
+        if (self.mode == Mode.single.value and os.path.islink(self.p['filelist'][0])) and not mld:
+            self.p["follow_symlinks"] = True
+        mld = mld or self.check_quiet_options()
+        return mld
 
     def check_loc(self, txt):
         """update location to get settings from
@@ -263,8 +313,8 @@ class LinterApp:
             self.readini(txt)
             # self.vraag_dir.clear()
             # self.vraag_dir.addItems(self._mru_items["dirs"])
-            self.gui.set_checkbox_value(self.gui.vraag_subs, self.p["subdirs"])
-            self.gui.set_checkbox_value(self.gui.vraag_repo, self.p["fromrepo"])
+            self.gui.set_checkbox_value(self.vraag_subs, self.p["subdirs"])
+            self.gui.set_checkbox_value(self.vraag_repo, self.p["fromrepo"])
 
     def check_type(self, item):
         """check linter options
@@ -304,15 +354,6 @@ class LinterApp:
                 self.s += f"\nin {test}"
                 self.p['filelist'] = [test]
         return mld
-
-    def checksubs(self, *items):
-        "subdirs aangeven"
-        subdirs, links, depth = items
-        if subdirs:
-            self.s += " en onderliggende directories"
-        self.p["subdirs"] = subdirs
-        self.p["follow_symlinks"] = links
-        self.p["maxdepth"] = depth
 
     def check_quiet_options(self):
         """check settings for quiet mode
@@ -357,7 +398,7 @@ class LinterApp:
     def configure_quiet(self):
         """configure quiet mode
         """
-        ok = gui.show_dialog(gui.QuietOptions, self.gui)
+        ok = gui.show_dialog(QuietOptions(self).gui)
         if not ok:
             return
         if self.gui.newquietoptions['single_file']:
@@ -374,7 +415,7 @@ class LinterApp:
     def configure_filter(self):
         """configure filtering
         """
-        ok = gui.show_dialog(gui.FilterOptions, self.gui)
+        ok = gui.show_dialog(FilterOptions(self).gui)
         if ok:
             self.update_blacklistfile()
 
@@ -414,8 +455,8 @@ class LinterApp:
         """
         if not all((self.do_checks.dirnames, self.do_checks.filenames)):
             return False  # failsafe; kan eigenlijk niet (meer)
-        skip_dirs = self.gui.get_checkbox_value(self.gui.ask_skipdirs)
-        skip_files = self.gui.get_checkbox_value(self.gui.ask_skipfiles)
+        skip_dirs = self.gui.get_checkbox_value(self.ask_skipdirs)
+        skip_files = self.gui.get_checkbox_value(self.ask_skipfiles)
 
         go_on = skip_dirs or skip_files
         canceled = False
@@ -424,7 +465,7 @@ class LinterApp:
             # print(self.do_checks.dirnames)
             if skip_dirs:
                 self.names = sorted(self.do_checks.dirnames)
-                canceled = not gui.show_dialog(gui.SelectNames, self.gui, files=False)
+                canceled = not gui.show_dialog(SelectNames(self, files=False).gui)
                 if canceled:
                     break
                 self.remove_files_in_selected_dirs()
@@ -435,7 +476,7 @@ class LinterApp:
                 # print(self.do_checks.filenames)
                 self.names = sorted(self.do_checks.filenames)
                 # print(self.names)
-                canceled = not gui.show_dialog(gui.SelectNames, self.gui)
+                canceled = not gui.show_dialog(SelectNames(self).gui)
                 if canceled and not skip_dirs:
                     go_on = False
                     break
@@ -502,3 +543,254 @@ def is_lintable(path):
             if filestart.startswith('#!') and 'python' in filestart:
                 return True  # str(path)
     return False  # ''
+
+
+class FilterOptions:
+    """configure what files (not) to lint
+    """
+    def __init__(self, parent):
+        self.parent = parent
+        self.gui = gui.FilterOptionsGui(self, parent.gui, parent.title)
+        self.gui.add_title_line("Blacklist (do no lint):")
+        self.skipdirs = self.gui.add_textentry_line(
+            "Directory names:", SEP.join(self.parent.blacklist['exclude_dirs']), width=200)
+        self.skipexts = self.gui.add_textentry_line(
+            "File extensions:", SEP.join(self.parent.blacklist['exclude_exts']))
+        self.skipfiles = self.gui.add_textentry_line(
+            "File names:", SEP.join(self.parent.blacklist['exclude_files']))
+        self.gui.add_title_line("")
+        self.gui.add_title_line( "Whitelist (only lint):")
+        self.do_exts = self.gui.add_textentry_line(
+            "File extensions:", SEP.join(self.parent.blacklist['include_exts']))
+        self.do_bangs = self.gui.add_textentry_line(
+            "Shebang lines:", SEP.join(self.parent.blacklist['include_shebang']))
+        self.gui.add_title_line("")
+        self.gui.add_buttons([("&Terug", self.gui.reject), ("&Klaar", self.gui.accept)])
+
+    def confirm(self):
+        """transfer chosen options to parent"""
+        self.parent.blacklist = {
+            'exclude_dirs': self.get_text_from_gui(self.skipdirs),
+            'exclude_exts': self.get_text_from_gui(self.skipexts),
+            'exclude_files': self.get_text_from_gui(self.skipfiles),
+            'include_exts': self.get_text_from_gui(self.do_exts),
+            'include_shebang': self.get_text_from_gui(self.do_bangs)}
+
+    def get_text_from_gui(self, textfield):
+        "format the gui output for the settings file"
+        return list(self.gui.get_textentry_value(textfield).split(SEP))
+
+
+class QuietOptions:
+    """configure where to send output to
+    """
+    text = """\
+    <linter>: replace linter name in path
+    <ignore>: part of source filename not to include in target name
+    <filename>: (remainder of) source filename
+    <date>: datetime.datetime.today().strftime('%Y%m%d%H%M%S')
+    """
+
+    def __init__(self, parent):
+        self.parent = parent
+        self.gui = gui.QuietOptionsGui(self, parent.gui, parent.title)
+        line = self.gui.start_line()
+        self.gui.add_text_to_line(line, "Send output to:")
+        self.gui.end_line(line)
+
+        line = self.gui.start_line()
+        checked = self.parent.quiet_options['dest'] == Mode.single.name
+        self.single = self.gui.add_radiobutton_to_line(line, 'Single file:', checked)
+        self.fname = self.gui.add_textentry_to_line(line, self.parent.quiet_options['fname'],
+                                                    width=TXTW)
+        self.gui.add_button_to_line(line, 'Select', self.gui.browse)
+        self.gui.end_line(line)
+
+        line = self.gui.start_line()
+        checked = self.parent.quiet_options['dest'] == Mode.multi.name
+        self.multi = self.gui.add_radiobutton_to_line(line, 'Multiple files like:', checked)
+        self.pattern = self.gui.add_textentry_to_line(line, self.parent.quiet_options['pattern'],
+                                                    width=TXTW + 100)
+        self.gui.end_line(line)
+
+        line = self.gui.start_line()
+        self.gui.add_text_to_line(line, '<ignore> part of filename:', before=26)
+        self.ignore = self.gui.add_textentry_to_line(line, self.parent.quiet_options['ignore'],
+                                                    width=TXTW)
+        self.gui.end_line(line)
+
+        line = self.gui.start_line()
+        self.gui.add_text_to_line(line, self.text)
+        self.gui.end_line(line)
+
+        self.gui.add_buttons([("&Terug", self.gui.reject), ("&Klaar", self.gui.accept)])
+
+        if self.parent.dest_from_input:
+            self.gui.set_radiobutton_value(self.single, True)
+            self.gui.set_textentry_value(self.fname, self.parent.dest_from_input)
+
+    def browse(self):
+        """callback for selector
+        """
+        # TODO
+
+    def confirm(self):
+        """transfer chosen options to parent"""
+        self.parent.newquietoptions = {
+            'single_file': self.gui.get_radiobutton_value(self.single),
+            'fname': self.gui.get_textentry_value(self.fname),
+            'pattern': self.gui.get_textentry_value(self.pattern),
+            'ignore': self.gui.get_textentry_value(self.ignore)}
+
+
+class SelectNames:
+    """Tussenscherm om te verwerken files te kiezen
+    """
+    def __init__(self, parent, files=True):
+        self.dofiles = files
+        self.parent = parent
+        self.gui = gui.SelectNamesGui(self, parent, parent.title + " - file list")
+
+        line = self.gui.start_line()
+        what = "bestanden" if files else "directories"
+        self.gui.add_text_to_line(line, f"Selecteer de {what} die je *niet* wilt verwerken")
+
+        line = self.gui.start_line()
+        self.sel_all = self.gui.add_checkbox_to_line(line, 'Select/Unselect All', self.select_all,
+                                                     before=10)
+        self.flip_sel = self.gui.add_button_to_line(line, 'Invert selection', self.invert_selection,
+                                                    before=20)
+
+        self.checklist = self.gui.create_checkbox_list(self.parent.names)
+        self.gui.create_button_bar([("&Terug", self.gui.reject), ("&Klaar", self.gui.accept)])
+
+    def select_all(self):
+        """check/uncheck all boxes
+        """
+        state = self.gui.get_checkbox_value(self.sel_all)
+        for chk in self.checklist:
+            self.gui.set_checkbox_value(chk, state)
+
+    def invert_selection(self):
+        """check unchecked and uncheck checked
+        """
+        for chk in self.checklist:
+            self.gui.set_checkbox_value(chk, not self.gui.get_checkbox_value(chk))
+
+    def confirm(self):
+        "dialoog afsluiten"
+        dirs = []
+        for chk in self.checklist:
+            if self.gui.get_checkbox_value(chk):
+                if self.dofiles:
+                    self.parent.names.remove(self.gui.get_checkbox_text(chk))
+                else:
+                    dirs.append(self.gui.get_checkbox_text(chk))
+        if not self.dofiles:
+            self.parent.names = dirs
+
+
+class Results:
+    """Show results on screen
+    """
+    helpinfo = ("Select a line and doubleclick or press Ctrl-G to open the indicated file\n"
+                "at the indicated line (not in single file mode)")
+    common_path_txt = 'De bestanden staan allemaal in of onder de directory "{}"'
+
+    def __init__(self, parent, common_path=''):
+        self.parent = parent
+        self.common = common_path
+        breedte = 50 if self.parent.mode == Mode.single.value else 150
+        self.gui = gui.ResultsGui(self, parent.gui, parent.resulttitel, breedte)
+        self.results = []
+        label_txt = (f"{self.parent.do_checks.rpt[0]}"
+                     f" ({len(self.parent.do_checks.results)} items)")
+        if self.parent.mode == Mode.multi.value:
+            label_txt += '\n' + self.common_path_txt.format(self.common.rstrip(os.sep))
+        self.gui.add_top_text(label_txt)
+        line, self.filelist = self.gui.add_combobox_line('Files checked:',
+                                                         self.parent.do_checks.filenames)
+        self.gui.add_button_to_line(line, "&Go To File", self.goto_result)
+        # breakpoint()
+        self.lijst = self.gui.add_results_list()
+        self.populate_list()
+        self.gui.add_buttons([("&Klaar", self.gui.accept), ("&Repeat Action", self.refresh),
+                              ("Copy to &File(s)", self.kopie),
+                              ("Copy to &Clipboard", self.to_clipboard)])
+
+    def populate_list(self):
+        """copy results to listbox
+        """
+        fname = self.gui.get_combobox_value(self.filelist)
+        text = self.parent.do_checks.results[fname]
+        self.gui.set_textbox_value(self.lijst, text)
+
+    # def klaar(self):
+    #     """finish dialog
+    #     """
+    #     self.gui.accept()
+
+    def refresh(self):
+        """callback for repeat action
+        """
+        self.results = []
+        self.gui.set_textbox_value(self.lijst, "")
+        self.parent.do_checks.rpt = ["".join(self.parent.do_checks.specs)]
+        self.parent.gui.execute_action()
+        self.populate_list()
+        self.gui.set_combobox_value(self.filelist, 0)
+
+    def kopie(self):
+        """callback for button 'Copy to file'
+        """
+        ok = gui.show_dialog(QuietOptions(self).gui)
+        if not ok:
+            return
+        if self.parent.newquietoptions['single_file']:
+            fname = self.parent.get_output_filename(self.parent.newquietoptions['fname'])
+            with open(fname, "w") as f_out:
+                first_file = True
+                for name, data in self.parent.do_checks.results.items():
+                    if not first_file:
+                        print('', file=f_out)
+                        print('', file=f_out)
+                    first_file = False
+                    print(f'results for {name}', file=f_out)
+                    print('', file=f_out)
+                    print(data, file=f_out)
+            msgstart = 'O'
+        else:
+            for name, data in self.parent.do_checks.results.items():
+                fname = self.parent.get_output_filename(
+                    self.parent.newquietoptions['pattern'], name)
+                with open(fname, 'w') as f_out:
+                    print(f'results for {name}', file=f_out)
+                    print('', file=f_out)
+                    print(data, file=f_out)
+            msgstart = 'Last o'
+        gui.show_message(self.gui, self.parent.title, f'{msgstart}utput saved as {fname}')
+
+    def help(self):
+        """suggest workflow
+        """
+        gui.show_message(self.gui, self.parent.title, self.helpinfo)
+
+    def to_clipboard(self):
+        """callback for button 'Copy to clipboard'
+        """
+        text = []
+        first_file = True
+        for name, data in self.parent.do_checks.results.items():
+            if not first_file:
+                text.extend(['', ''])
+            first_file = False
+            text.extend([f'results for {name}', '', data])
+        self.gui.copy_to_clipboard('\n'.join(text))
+        gui.show_message(self.gui, self.parent.title, 'Output copied to clipboard')
+
+    def goto_result(self):
+        """open the file containing the checked lines
+        """
+        fname = self.gui.get_combobox_value(self.filelist)
+        prog, fileopt = self.parent.editor_option[:2]
+        subprocess.run(prog + [fileopt.format(fname)], check=False)  # , lineopt.format(line)])

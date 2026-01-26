@@ -4,7 +4,6 @@ import types
 import pytest
 from mockgui import mockqtwidgets as mockqtw
 from app import qtgui as testee
-from output_fixture import expected_output
 
 
 class MockLinterApp:
@@ -69,21 +68,36 @@ def _test_waiting_cursor(monkeypatch, capsys):
 def test_show_dialog(monkeypatch, capsys):
     """unittest for qtgui.show_dialog
     """
-    def mock_exec(cls):
+    def mock_exec():
         print('called Dialog.exec')
-        return True
-    mockparent = 'parent'
-    monkeypatch.setattr(testee.qtw.QDialog, '__init__', mockqtw.MockDialog.__init__)
-    monkeypatch.setattr(testee.qtw.QDialog, 'exec', mockqtw.MockDialog.exec)
-    cls = testee.qtw.QDialog
-    assert not testee.show_dialog(cls, mockparent)
-    assert capsys.readouterr().out == ("called Dialog.__init__ with args parent () {}\n"
-                                       "called Dialog.exec\n")
-    monkeypatch.setattr(testee.qtw.QDialog, 'exec', mock_exec)
-    cls = testee.qtw.QDialog
-    assert testee.show_dialog(cls, mockparent)
-    assert capsys.readouterr().out == ("called Dialog.__init__ with args parent () {}\n"
-                                       "called Dialog.exec\n")
+        return 'Anything'
+    def mock_exec_2():
+        print('called Dialog.exec')
+        return testee.qtw.QDialog.DialogCode.Accepted
+    dialog = types.SimpleNamespace(exec=mock_exec)
+    assert not testee.show_dialog(dialog)
+    assert capsys.readouterr().out == "called Dialog.exec\n"
+    dialog.exec = mock_exec_2
+    assert testee.show_dialog(dialog)
+    assert capsys.readouterr().out == "called Dialog.exec\n"
+
+
+def test_show_message(monkeypatch, capsys):
+    """unittest for qtgui.show_message
+    """
+    monkeypatch.setattr(testee.qtw, 'QMessageBox', mockqtw.MockMessageBox)
+    testee.show_message('parent', 'title', 'message')
+    assert capsys.readouterr().out == (
+            "called MessageBox.information with args `parent` `title` `message`\n")
+
+
+# waar komt deze vandaan?
+    def _test_wrap_operation(self, monkeypatch, capsys):
+        """unittest for .wrap_operation
+        """
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        assert testobj.wrap_operation() == "expected_result"
+        assert capsys.readouterr().out == ("")
 
 
 class TestLinterGui:
@@ -130,136 +144,95 @@ class TestLinterGui:
                                            "called Icon.__init__ with arg `icon name`\n"
                                            "called Widget.setWindowIcon\n")
 
-    def test_setup_screen(self, monkeypatch, capsys, tmp_path, expected_output):
-        """unittest for LinterGui.setup_screen
+    def test_start_display(self, monkeypatch, capsys):
+        """unittest for LinterGui.start_display
         """
-        def mock_add_combo(*args, **kwargs):
-            print('called LinterApp.add_combobox_line with args', args, kwargs)
-            return mockqtw.MockComboBox()
-        def mock_add_check(*args, **kwargs):
-            print('called LinterApp.add_checkbox_line with args', args, kwargs)
-            return mockqtw.MockCheckBox()
-        def mock_setlayout(arg):
-            print(f'called LinterGui.setLayout with arg {type(arg).__name__}')
-        def mock_doe():
-            print('called LinterApp.doe')
-        def mock_show():
-            print('called LinterGui.show')
-        def mock_close():
-            print('called LinterGui.close')
-        monkeypatch.setattr(testee, 'checktypes', ['xxx', 'yyy'])
-        monkeypatch.setattr(testee.qtw, 'QVBoxLayout', mockqtw.MockVBoxLayout)
-        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
         monkeypatch.setattr(testee.qtw, 'QGridLayout', mockqtw.MockGridLayout)
-        monkeypatch.setattr(testee.gui, 'QFont', mockqtw.MockFont)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.start_display()
+        assert isinstance(testobj.grid, testee.qtw.QGridLayout)
+        assert testobj.row == -1
+        assert capsys.readouterr().out == "called Grid.__init__\n"
+
+    def test_build_radiobutton_row(self, monkeypatch, capsys):
+        """unittest for LinterGui.build_radiobutton_row
+        """
         monkeypatch.setattr(testee.qtw, 'QLabel', mockqtw.MockLabel)
+        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
         monkeypatch.setattr(testee.qtw, 'QButtonGroup', mockqtw.MockButtonGroup)
         monkeypatch.setattr(testee.qtw, 'QRadioButton', mockqtw.MockRadioButton)
-        monkeypatch.setattr(testee.qtw, 'QListWidget', mockqtw.MockListBox)
-        monkeypatch.setattr(testee.qtw, 'QSpinBox', mockqtw.MockSpinBox)
-        monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
-        monkeypatch.setattr(mockqtw.MockComboBox, 'editTextChanged', {str: mockqtw.MockSignal()})
-        assert capsys.readouterr().out == "called Signal.__init__\n"
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.add_combobox_row = mock_add_combo
-        testobj.add_checkbox_row = mock_add_check
-        testobj.master.mode = testee.Mode.standard.value
-        testobj.master.linter_from_input = 'ruff'
-        testobj.master.dest_from_input = False
-        testobj.master._mru_items = {'dirs': ['aaa']}
-        testobj.master.checking_type = 'xxx'
-        testobj.master.repo_only = False
-        testobj.master.p = {'subdirs': False, 'filelist': []}
-        testobj.master.doe = mock_doe
-        testobj.setLayout = mock_setlayout
-        testobj.show = mock_show
-        testobj.close = mock_close
-        testobj.master.skip_screen = False
-        with pytest.raises(SystemExit):
-            testobj.setup_screen()
-        assert isinstance(testobj.grid, testee.qtw.QGridLayout)
-        lastrow = 8
-        assert testobj.row == lastrow
-        assert isinstance(testobj.check_options, testee.qtw.QButtonGroup)
-        assert isinstance(testobj.linters, testee.qtw.QButtonGroup)
-        assert capsys.readouterr().out == expected_output['maingui_standard'].format(testobj=testobj,
-                                                                                     fname='',
-                                                                                     extra='',
-                                                                                     row=lastrow)
-        fname = tmp_path / 'xxx'
-        testobj.master.p['filelist'] = [str(fname)]
-        with pytest.raises(SystemExit):
-            testobj.setup_screen()
-        assert isinstance(testobj.grid, testee.qtw.QGridLayout)
-        lastrow = 8
-        assert testobj.row == lastrow
-        assert isinstance(testobj.check_options, testee.qtw.QButtonGroup)
-        assert isinstance(testobj.linters, testee.qtw.QButtonGroup)
-        assert capsys.readouterr().out == expected_output['maingui_standard2'].format(testobj=testobj,
-                                                                                      fname=fname,
-                                                                                      extra='',
-                                                                                      row=lastrow)
+        testobj.grid = mockqtw.MockGridLayout()
+        testobj.row = 0
+        result = testobj.build_radiobutton_row('title', [('xx', False), ('yy', True)])
+        assert testobj.row == 1
+        assert isinstance(result, testee.qtw.QButtonGroup)
+        assert capsys.readouterr().out == (
+                "called Grid.__init__\n"
+                f"called Label.__init__ with args ('title', {testobj})\n"
+                "called Grid.addWidget with arg MockLabel at (1, 0)\n"
+                "called ButtonGroup.__init__ with args ()\n"
+                "called HBox.__init__\n"
+                f"called RadioButton.__init__ with args ('xx', {testobj}) {{}}\n"
+                "called ButtonGroup.addButton with arg MockRadioButton\n"
+                "called HBox.addWidget with arg MockRadioButton\n"
+                f"called RadioButton.__init__ with args ('yy', {testobj}) {{}}\n"
+                "called ButtonGroup.addButton with arg MockRadioButton\n"
+                "called HBox.addWidget with arg MockRadioButton\n"
+                "called RadioButton.setChecked with arg `True`\n"
+                "called Grid.addLayout with arg MockHBoxLayout at (1, 1, 1, 2)\n")
 
-        testobj.master.mode = testee.Mode.single.value
-        testobj.master.checking_type = 'zzz'
-        testobj.master.linter_from_input = ''
-        # fname.touch()
-        with pytest.raises(SystemExit):
-            testobj.setup_screen()
-        assert isinstance(testobj.grid, testee.qtw.QGridLayout)
-        lastrow = 6
-        assert testobj.row == lastrow
-        assert isinstance(testobj.check_options, testee.qtw.QButtonGroup)
-        assert isinstance(testobj.linters, testee.qtw.QButtonGroup)
-        assert capsys.readouterr().out == expected_output['maingui_single1'].format(testobj=testobj,
-                                                                                    fname=fname,
-                                                                                    row=lastrow)
+    def test_build_radiobutton_block(self, monkeypatch, capsys):
+        """unittest for LinterGui.build_radiobutton_block
+        """
+        def mock_configure():
+            "dummy callback"
+        monkeypatch.setattr(testee.qtw, 'QLabel', mockqtw.MockLabel)
+        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
+        monkeypatch.setattr(testee.qtw, 'QButtonGroup', mockqtw.MockButtonGroup)
+        monkeypatch.setattr(testee.qtw, 'QRadioButton', mockqtw.MockRadioButton)
+        monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.grid = mockqtw.MockGridLayout()
+        testobj.master = types.SimpleNamespace(configure_linter=mock_configure)
+        testobj.row = 0
+        result = testobj.build_radiobutton_block('title', [('xx', False), ('yy', True)])
+        assert testobj.row == 3
+        assert isinstance(result, testee.qtw.QButtonGroup)
+        assert capsys.readouterr().out == (
+                "called Grid.__init__\n"
+                f"called Label.__init__ with args ('title', {testobj})\n"
+                "called Grid.addWidget with arg MockLabel at (1, 0)\n"
+                "called ButtonGroup.__init__ with args ()\n"
+                "called HBox.__init__\n"
+                f"called RadioButton.__init__ with args ('Xx', {testobj}) {{}}\n"
+                "called ButtonGroup.addButton with arg MockRadioButton\n"
+                "called HBox.addWidget with arg MockRadioButton\n"
+                f"called PushButton.__init__ with args ('Configure', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({testobj.master.configure_linter},)\n"
+                "called HBox.addWidget with arg MockPushButton\n"
+                "called HBox.addStretch\n"
+                "called Grid.addLayout with arg MockHBoxLayout at (1, 1)\n"
+                "called HBox.__init__\n"
+                f"called RadioButton.__init__ with args ('Yy', {testobj}) {{}}\n"
+                "called ButtonGroup.addButton with arg MockRadioButton\n"
+                "called HBox.addWidget with arg MockRadioButton\n"
+                "called RadioButton.setChecked with arg `True`\n"
+                f"called PushButton.__init__ with args ('Configure', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({testobj.master.configure_linter},)\n"
+                "called HBox.addWidget with arg MockPushButton\n"
+                "called HBox.addStretch\n"
+                "called Grid.addLayout with arg MockHBoxLayout at (2, 1)\n")
 
-        # fname.unlink()
-        fname.mkdir()
-        with pytest.raises(SystemExit):
-            testobj.setup_screen()
-        assert isinstance(testobj.grid, testee.qtw.QGridLayout)
-        lastrow = 6
-        assert testobj.row == lastrow
-        assert isinstance(testobj.check_options, testee.qtw.QButtonGroup)
-        assert isinstance(testobj.linters, testee.qtw.QButtonGroup)
-        assert capsys.readouterr().out == expected_output['maingui_single2'].format(testobj=testobj,
-                                                                                    fname=fname,
-                                                                                    extra='',
-                                                                                    row=lastrow)
-
-        testobj.master.mode = testee.Mode.multi.value
-        testobj.master.p['filelist'] = ['xxx', 'yyy']
-        with pytest.raises(SystemExit):
-            testobj.setup_screen()
-        assert isinstance(testobj.grid, testee.qtw.QGridLayout)
-        lastrow = 8
-        assert testobj.row == lastrow
-        assert isinstance(testobj.check_options, testee.qtw.QButtonGroup)
-        assert isinstance(testobj.linters, testee.qtw.QButtonGroup)
-        extra = 'van geselecteerde directories '
-        assert capsys.readouterr().out == expected_output['maingui_multi'].format(testobj=testobj,
-                                                                                  extra=extra,
-                                                                                  row=lastrow)
-
-        testobj.master.skip_screen = True
-        testobj.setup_screen()
-        assert isinstance(testobj.grid, testee.qtw.QGridLayout)
-        lastrow = 8
-        assert testobj.row == lastrow
-        assert isinstance(testobj.check_options, testee.qtw.QButtonGroup)
-        assert isinstance(testobj.linters, testee.qtw.QButtonGroup)
-        assert capsys.readouterr().out == expected_output['maingui_nogui'].format(testobj=testobj,
-                                                                                  extra=extra,
-                                                                                  row=lastrow)
-
-    def test_add_combobox_row(self, monkeypatch, capsys, expected_output):
+    def test_add_combobox_row(self, monkeypatch, capsys):
         """unittest for LinterGui.add_combobox_row
         """
         monkeypatch.setattr(testee.qtw, 'QLabel', mockqtw.MockLabel)
         monkeypatch.setattr(testee.qtw, 'QComboBox', mockqtw.MockComboBox)
         monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
+        monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
+        monkeypatch.setattr(mockqtw.MockComboBox, 'editTextChanged', {str: mockqtw.MockSignal()})
+        assert capsys.readouterr().out == "called Signal.__init__\n"
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.grid = mockqtw.MockGridLayout()
         button = mockqtw.MockPushButton()
@@ -269,44 +242,171 @@ class TestLinterGui:
         result = testobj.add_combobox_row('label text', ['item', 'list'])
         assert isinstance(result, testee.qtw.QComboBox)
         assert testobj.row == 2
-        assert capsys.readouterr().out == expected_output['combobox_row1'].format(row=testobj.row)
-        result = testobj.add_combobox_row('label text', ['item', 'list'], 'start', button)
+        assert capsys.readouterr().out == (
+            "called Label.__init__ with args ('label text',)\n"
+            f"called Grid.addWidget with arg MockLabel at ({testobj.row}, 0)\n"
+            "called ComboBox.__init__\n"
+            "called ComboBox.insertItems with args (0, ['item', 'list'])\n"
+            "called ComboBox.setEditable with arg `True`\n"
+            "called ComboBox.clearEditText\n"
+            "called ComboBox.setCompleter with arg None\n"
+            f"called Grid.addWidget with arg MockComboBox at ({testobj.row}, 1)\n")
+        result = testobj.add_combobox_row('label text', ['item', 'list'], 'start', 100, 'callback',
+                                          ['button', 'callback'])
         assert isinstance(result, testee.qtw.QComboBox)
         assert testobj.row == 3
-        assert capsys.readouterr().out == expected_output['combobox_row2'].format(row=testobj.row)
+        assert capsys.readouterr().out == (
+            "called Label.__init__ with args ('label text',)\n"
+            f"called Grid.addWidget with arg MockLabel at ({testobj.row}, 0)\n"
+            "called ComboBox.__init__\n"
+            "called ComboBox.setMaximumWidth with arg `100`\n"
+            "called ComboBox.setMinimumWidth with arg `100`\n"
+            "called ComboBox.insertItems with args (0, ['item', 'list'])\n"
+            "called ComboBox.setEditable with arg `True`\n"
+            "called ComboBox.clearEditText\n"
+            "called ComboBox.setEditText with arg `start`\n"
+            "called ComboBox.setCompleter with arg None\n"
+            "called Signal.connect with args ('callback',)\n"
+            "called HBox.__init__\n"
+            "called PushButton.__init__ with args ('button',) {}\n"
+            "called Signal.connect with args ('callback',)\n"
+            "called HBox.addWidget with arg MockComboBox\n"
+            "called HBox.addWidget with arg MockPushButton\n"
+            "called HBox.addStretch\n"
+            f"called Grid.addLayout with arg MockHBoxLayout at ({testobj.row}, 1)\n")
 
-    def test_add_checkbox_row(self, monkeypatch, capsys, expected_output):
-        """unittest for LinterGui.add_checkbox_row
+    def test_show_single_mode_info(self, monkeypatch, capsys):
+        """unittest for LinterGui.show_single_mode_info
         """
-        monkeypatch.setattr(testee.qtw, 'QCheckBox', mockqtw.MockCheckBox)
+        monkeypatch.setattr(testee.qtw, 'QLabel', mockqtw.MockLabel)
         monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.grid = mockqtw.MockGridLayout()
-        button = mockqtw.MockPushButton()
-        spinner = mockqtw.MockSpinBox()
-        assert capsys.readouterr().out == ("called Grid.__init__\n"
-                                           "called PushButton.__init__ with args () {}\n"
-                                           "called SpinBox.__init__\n")
-        testobj.row = 1
-        result = testobj.add_checkbox_row('text')
-        assert isinstance(result, testee.qtw.QCheckBox)
-        assert testobj.row == 2
-        assert capsys.readouterr().out == expected_output['checkbox_row'].format(testobj=testobj)
-        result = testobj.add_checkbox_row('text', spinner=spinner)
-        assert isinstance(result, testee.qtw.QCheckBox)
-        assert testobj.row == 3
-        assert capsys.readouterr().out == expected_output['checkbox_row2'].format(testobj=testobj)
-        result = testobj.add_checkbox_row('text', True, button=button)
-        assert isinstance(result, testee.qtw.QCheckBox)
-        assert testobj.row == 4
-        assert capsys.readouterr().out == expected_output['checkbox_row3'].format(testobj=testobj)
+        assert capsys.readouterr().out == "called Grid.__init__\n"
+        testobj.row = 0
+        testobj.show_single_mode_info('locationtext', 'filename')
+        assert testobj.row == 1
+        assert capsys.readouterr().out == (
+                f"called Label.__init__ with args ('locationtext', {testobj})\n"
+                "called Grid.addWidget with arg MockLabel at (1, 0)\n"
+                "called HBox.__init__\n"
+                f"called Label.__init__ with args ('filename', {testobj})\n"
+                "called HBox.addWidget with arg MockLabel\n"
+                "called Grid.addLayout with arg MockHBoxLayout at (1, 1, 1, 2)\n")
 
-    # def _test_check_case(self, monkeypatch, capsys):
-    #     """unittest for LinterGui.check_case
-    #     """
-    #     testobj = self.setup_testobj(monkeypatch, capsys)
-    #     assert testobj.check_case(inp) == "expected_result"
-    #     assert capsys.readouterr().out == ("")
+    def test_show_multi_mode_info(self, monkeypatch, capsys):
+        """unittest for LinterGui.show_multi_mode_info
+        """
+        monkeypatch.setattr(testee.qtw, 'QLabel', mockqtw.MockLabel)
+        monkeypatch.setattr(testee.qtw, 'QListWidget', mockqtw.MockListBox)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.grid = mockqtw.MockGridLayout()
+        assert capsys.readouterr().out == "called Grid.__init__\n"
+        testobj.row = 0
+        testobj.show_multi_mode_info('locationtext', ['file', 'dir', 'file2'])
+        assert testobj.row == 1
+        assert capsys.readouterr().out == (
+                f"called Label.__init__ with args ('locationtext', {testobj})\n"
+                "called Grid.addWidget with arg MockLabel at (1, 0, 1, 3)\n"
+                "called List.__init__\n"
+                "called List.insertItems with args (0, ['file', 'dir', 'file2'])\n"
+                "called Grid.addWidget with arg MockListBox at (1, 0, 1, 3)\n")
+
+    def test_add_checkbox_line(self, monkeypatch, capsys):
+        """unittest for LinterGui.add_checkbox_line
+        """
+        def callback():
+            "empty function needed for reference"
+        monkeypatch.setattr(testee.qtw, 'QCheckBox', mockqtw.MockCheckBox)
+        monkeypatch.setattr(testee.qtw, 'QSpinBox', mockqtw.MockSpinBox)
+        monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
+        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.grid = mockqtw.MockGridLayout()
+        assert capsys.readouterr().out == "called Grid.__init__\n"
+        testobj.row = 1
+        result = testobj.add_checkbox_line('text')
+        assert isinstance(result[0], testee.qtw.QCheckBox)
+        assert result[1] is None
+        assert testobj.row == 2
+        assert capsys.readouterr().out == (
+                f"called CheckBox.__init__ with args ('text', {testobj})\n"
+                "called Grid.addWidget with arg MockCheckBox at (2, 1)\n")
+        testobj.row = 1
+        result = testobj.add_checkbox_line('text', True, (1, 2), ('btn', callback))
+        assert isinstance(result[0], testee.qtw.QCheckBox)
+        assert isinstance(result[1], testee.qtw.QSpinBox)
+        assert capsys.readouterr().out == (
+                "called HBox.__init__\n"
+                f"called CheckBox.__init__ with args ('text', {testobj})\n"
+                "called CheckBox.toggle\n"
+                "called HBox.addWidget with arg MockCheckBox\n"
+                "called SpinBox.__init__\n"
+                "called SpinBox.setMinimum with arg '1'\n"
+                "called SpinBox.setValue with arg '2'\n"
+                "called HBox.addWidget with arg MockSpinBox\n"
+                f"called PushButton.__init__ with args ('btn', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback},)\n"
+                "called HBox.addWidget with arg MockPushButton\n"
+                "called HBox.addStretch\n"
+                "called Grid.addLayout with arg MockHBoxLayout at (2, 1)\n")
+
+    def test_add_buttons(self, monkeypatch, capsys):
+        """unittest for LinterGui.add_buttons
+        """
+        def callback1():
+            "empty function needed for reference"
+        def callback2():
+            "empty function needed for reference"
+        monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
+        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.grid = mockqtw.MockGridLayout()
+        assert capsys.readouterr().out == "called Grid.__init__\n"
+        testobj.row = 0
+        testobj.add_buttons([('xx', callback1), ('yy', callback2)])
+        assert testobj.row == 1
+        assert capsys.readouterr().out == (
+                "called HBox.__init__\n"
+                "called HBox.addStretch\n"
+                f"called PushButton.__init__ with args ('xx', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback1},)\n"
+                "called HBox.addWidget with arg MockPushButton\n"
+                f"called PushButton.__init__ with args ('yy', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback2},)\n"
+                "called HBox.addWidget with arg MockPushButton\n"
+                "called HBox.addStretch\n"
+                "called Grid.addLayout with arg MockHBoxLayout at (1, 0, 1, 2)\n")
+
+    def test_finalize_display(self, monkeypatch, capsys):
+        """unittest for LinterGui.finalize_display
+        """
+        monkeypatch.setattr(testee.qtw, 'QVBoxLayout', mockqtw.MockVBoxLayout)
+        monkeypatch.setattr(testee.qtw.QWidget, 'setLayout', mockqtw.MockWidget.setLayout)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        buttongroup = mockqtw.MockButtonGroup()
+        buttongroup.addButton(mockqtw.MockPushButton('xxx'))
+        testobj.grid = mockqtw.MockGridLayout()
+        assert capsys.readouterr().out == ("called ButtonGroup.__init__ with args ()\n"
+                                           "called PushButton.__init__ with args ('xxx',) {}\n"
+                                           "called ButtonGroup.addButton with arg MockPushButton\n"
+                                           "called Grid.__init__\n")
+        testobj.finalize_display(buttongroup)
+        assert capsys.readouterr().out == ("called VBox.__init__\n"
+                                           "called VBox.addLayout with arg MockGridLayout\n"
+                                           "called Widget.setLayout with arg MockVBoxLayout\n"
+                                           "called ButtonGroup.buttons\n"
+                                           "called PushButton.setFocus\n")
+
+    def test_go(self, monkeypatch, capsys):
+        """unittest for LinterGui.go
+        """
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.app = mockqtw.MockApplication()
+        assert capsys.readouterr().out == "called Application.__init__\n"
+        with pytest.raises(SystemExit):
+            testobj.go()
+        assert capsys.readouterr().out == ("called Application.exec\n")
 
     def test_keyPressEvent(self, monkeypatch, capsys):
         """unittest for LinterGui.keyPressEvent
@@ -339,7 +439,6 @@ class TestLinterGui:
         assert testobj.get_radiogroup_checked(group) == "xxx"
         assert capsys.readouterr().out == ("called ButtonGroup.checkedButton\n"
                                            "called RadioButton.text\n")
-
 
     def test_meld_fout(self, monkeypatch, capsys):
         """unittest for LinterGui.meld_fout
@@ -420,7 +519,7 @@ class TestLinterGui:
             return 'xyz'
         monkeypatch.setattr(testee.qtw, 'QFileDialog', mockqtw.MockFileDialog)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.vraag_dir = mockqtw.MockComboBox()
+        testobj.master = types.SimpleNamespace(vraag_dir=mockqtw.MockComboBox())
         assert capsys.readouterr().out == "called ComboBox.__init__\n"
         testobj.zoekdir()
         assert capsys.readouterr().out == (
@@ -437,11 +536,11 @@ class TestLinterGui:
                 "called ComboBox.setEditText with arg `xyz`\n")
 
 
-class TestFilterOptions:
-    """unittest for qtgui.FilterOptions
+class TestFilterOptionsGui:
+    """unittests for qtgui.FilterOptionsGui
     """
     def setup_testobj(self, monkeypatch, capsys):
-        """stub for qtgui.FilterOptions object
+        """stub for qtgui.FilterOptionsGui object
 
         create the object skipping the normal initialization
         intercept messages during creation
@@ -450,67 +549,132 @@ class TestFilterOptions:
         def mock_init(self, *args):
             """stub
             """
-            print('called FilterOptions.__init__ with args', args)
-        monkeypatch.setattr(testee.FilterOptions, '__init__', mock_init)
-        testobj = testee.FilterOptions()
-        testobj.parent = MockLinterGui()
-        testobj.parent.master = MockLinterApp()
-        assert capsys.readouterr().out == ('called FilterOptions.__init__ with args ()\n'
-                                           "called LinterGui.__init__ with args () {}\n"
-                                           "called LinterApp.__init__ with args () {}\n")
+            print('called FilterOptionsGui.__init__ with args', args)
+        monkeypatch.setattr(testee.FilterOptionsGui, '__init__', mock_init)
+        testobj = testee.FilterOptionsGui()
+        assert capsys.readouterr().out == 'called FilterOptionsGui.__init__ with args ()\n'
         return testobj
 
-    def test_init(self, monkeypatch, capsys, expected_output):
-        """unittest for FilterOptions.__init__
+    def test_init(self, monkeypatch, capsys):
+        """unittest for FilterOptionsGui.__init__
         """
         monkeypatch.setattr(testee.qtw.QDialog, '__init__', mockqtw.MockDialog.__init__)
         monkeypatch.setattr(testee.qtw.QDialog, 'setWindowTitle', mockqtw.MockDialog.setWindowTitle)
         monkeypatch.setattr(testee.qtw.QDialog, 'setWindowIcon', mockqtw.MockDialog.setWindowIcon)
         monkeypatch.setattr(testee.qtw.QDialog, 'setLayout', mockqtw.MockDialog.setLayout)
         monkeypatch.setattr(testee.qtw, 'QVBoxLayout', mockqtw.MockVBoxLayout)
-        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
         monkeypatch.setattr(testee.qtw, 'QGridLayout', mockqtw.MockGridLayout)
+        master = 'master'
+        parent = types.SimpleNamespace(appicon='icon')
+        testobj = testee.FilterOptionsGui('master', parent, 'title')
+        assert testobj.master == 'master'
+        assert isinstance(testobj.vbox, testee.qtw.QVBoxLayout)
+        assert isinstance(testobj.gbox, testee.qtw.QGridLayout)
+        assert testobj.row == 0
+        assert capsys.readouterr().out == (f"called Dialog.__init__ with args {parent} () {{}}\n"
+                                           "called Dialog.setWindowTitle with args ('title',)\n"
+                                           "called Dialog.setWindowIcon with args ('icon',)\n"
+                                           "called VBox.__init__\n"
+                                           "called Grid.__init__\n"
+                                           "called VBox.addLayout with arg MockGridLayout\n"
+                                           "called Dialog.setLayout with arg MockVBoxLayout\n")
+
+    def test_add_title_line(self, monkeypatch, capsys):
+        """unittest for FilterOptionsGui.add_title_line
+        """
+        monkeypatch.setattr(testee.qtw, 'QLabel', mockqtw.MockLabel)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.gbox = mockqtw.MockGridLayout()
+        assert capsys.readouterr().out == "called Grid.__init__\n"
+        testobj.row = 0
+        testobj.add_title_line('text')
+        assert testobj.row == 1
+        assert capsys.readouterr().out == (
+                f"called Label.__init__ with args ('text', {testobj})\n"
+                "called Grid.addWidget with arg MockLabel at (1, 0, 1, 2)\n")
+
+    def test_add_textentry_line(self, monkeypatch, capsys):
+        """unittest for FilterOptionsGui.add_textentry_line
+        """
         monkeypatch.setattr(testee.qtw, 'QLabel', mockqtw.MockLabel)
         monkeypatch.setattr(testee.qtw, 'QLineEdit', mockqtw.MockLineEdit)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.gbox = mockqtw.MockGridLayout()
+        assert capsys.readouterr().out == "called Grid.__init__\n"
+        testobj.row = 0
+        result = testobj.add_textentry_line('caption', 'initialtext')
+        assert testobj.row == 1
+        assert isinstance(result, testee.qtw.QLineEdit)
+        assert capsys.readouterr().out == (
+                f"called Label.__init__ with args ('caption', {testobj})\n"
+                "called Grid.addWidget with arg MockLabel at (1, 0)\n"
+                "called LineEdit.__init__\n"
+                "called LineEdit.setText with arg `initialtext`\n"
+                "called Grid.addWidget with arg MockLineEdit at (1, 1)\n")
+        testobj.row = 0
+        result = testobj.add_textentry_line('caption', 'initialtext', 50)
+        assert testobj.row == 1
+        assert isinstance(result, testee.qtw.QLineEdit)
+        assert capsys.readouterr().out == (
+                f"called Label.__init__ with args ('caption', {testobj})\n"
+                "called Grid.addWidget with arg MockLabel at (1, 0)\n"
+                "called LineEdit.__init__\n"
+                "called LineEdit.setMinimumWidth with arg `50`\n"
+                "called LineEdit.setText with arg `initialtext`\n"
+                "called Grid.addWidget with arg MockLineEdit at (1, 1)\n")
+
+    def test_add_buttons(self, monkeypatch, capsys):
+        """unittest for FilterOptionsGui.add_buttons
+        """
+        def callback1():
+            "empty function for reference"
+        def callback2():
+            "empty function for reference"
+        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
         monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
-        parent = MockLinterGui()
-        parent.master = MockLinterApp()
-        assert capsys.readouterr().out == ("called LinterGui.__init__ with args () {}\n"
-                                           "called LinterApp.__init__ with args () {}\n")
-        parent.master.title = 'Title'
-        parent.master.blacklist = {'exclude_dirs': ['xxx', 'yyy'], 'exclude_exts': ['a', 'b'],
-                                   'exclude_files': ['f', 'g'], 'include_exts': ['aa', 'bb'],
-                                   'include_shebang': ['#!x', '#!y']}
-        parent.appicon = "app icon"
-        testobj = testee.FilterOptions(parent)
-        assert capsys.readouterr().out == expected_output["filteroptions"].format(testobj=testobj,
-                                                                                  parent=parent)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.vbox = mockqtw.MockVBoxLayout()
+        assert capsys.readouterr().out == "called VBox.__init__\n"
+        testobj.add_buttons([('xxx', callback1), ('yyy', callback2)])
+        assert capsys.readouterr().out == (
+                "called HBox.__init__\n"
+                "called HBox.addStretch\n"
+                f"called PushButton.__init__ with args ('xxx', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback1},)\n"
+                "called HBox.addWidget with arg MockPushButton\n"
+                f"called PushButton.__init__ with args ('yyy', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback2},)\n"
+                "called HBox.addWidget with arg MockPushButton\n"
+                "called HBox.addStretch\n"
+                "called VBox.addLayout with arg MockHBoxLayout\n")
 
     def test_accept(self, monkeypatch, capsys):
-        """unittest for FilterOptions.accept
+        """unittest for FilterOptionsGui.accept
         """
+        def mock_confirm():
+            print('called FilterOptions.confirm')
         monkeypatch.setattr(testee.qtw.QDialog, 'accept', mockqtw.MockDialog.accept)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.skipdirs = mockqtw.MockLineEdit('x, y')
-        testobj.skipexts = mockqtw.MockLineEdit('a, b')
-        testobj.do_exts = mockqtw.MockLineEdit('c, d')
-        testobj.skipfiles = mockqtw.MockLineEdit('p, q')
-        testobj.do_bangs = mockqtw.MockLineEdit('#, @')
-        assert capsys.readouterr().out == 'called LineEdit.__init__\n' * 5
+        testobj.master = types.SimpleNamespace(confirm=mock_confirm)
         testobj.accept()
-        assert testobj.parent.master.blacklist == {'exclude_dirs': ['x', 'y'],
-                                                   'exclude_exts': ['a', 'b'],
-                                                   'include_exts': ['c', 'd'],
-                                                   'exclude_files': ['p', 'q'],
-                                                   'include_shebang': ['#', '@']}
-        assert capsys.readouterr().out == 'called LineEdit.text\n' * 5 + 'called Dialog.accept\n'
+        assert capsys.readouterr().out == ("called FilterOptions.confirm\n"
+                                           "called Dialog.accept\n")
+
+    def test_get_textentry_value(self, monkeypatch, capsys):
+        """unittest for FilterOptionsGui.get_textentry_value
+        """
+        textfield = mockqtw.MockLineEdit()
+        assert capsys.readouterr().out == "called LineEdit.__init__\n"
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        assert testobj.get_textentry_value(textfield) == ""
+        assert capsys.readouterr().out == ("called LineEdit.text\n")
 
 
-class TestQuietOptions:
-    """unittest for qtgui.QuietOptions
+class TestQuietOptionsGui:
+    """unittests for qtgui.QuietOptionsGui
     """
     def setup_testobj(self, monkeypatch, capsys):
-        """stub for qtgui.QuietOptions object
+        """stub for qtgui.QuietOptionsGui object
 
         create the object skipping the normal initialization
         intercept messages during creation
@@ -519,98 +683,208 @@ class TestQuietOptions:
         def mock_init(self, *args):
             """stub
             """
-            print('called QuietOptions.__init__ with args', args)
-        monkeypatch.setattr(testee.QuietOptions, '__init__', mock_init)
-        testobj = testee.QuietOptions()
-        testobj.parent = MockLinterGui()
-        testobj.parent.master = MockLinterApp()
-        assert capsys.readouterr().out == ('called QuietOptions.__init__ with args ()\n'
-                                           "called LinterGui.__init__ with args () {}\n"
-                                           "called LinterApp.__init__ with args () {}\n")
+            print('called QuietOptionsGui.__init__ with args', args)
+        monkeypatch.setattr(testee.QuietOptionsGui, '__init__', mock_init)
+        testobj = testee.QuietOptionsGui()
+        assert capsys.readouterr().out == 'called QuietOptionsGui.__init__ with args ()\n'
         return testobj
 
-    def test_init(self, monkeypatch, capsys, expected_output):
-        """unittest for QuietOptions.__init__
+    def test_init(self, monkeypatch, capsys):
+        """unittest for QuietOptionsGui.__init__
         """
         monkeypatch.setattr(testee.qtw.QDialog, '__init__', mockqtw.MockDialog.__init__)
         monkeypatch.setattr(testee.qtw.QDialog, 'setWindowTitle', mockqtw.MockDialog.setWindowTitle)
         monkeypatch.setattr(testee.qtw.QDialog, 'setWindowIcon', mockqtw.MockDialog.setWindowIcon)
         monkeypatch.setattr(testee.qtw.QDialog, 'setLayout', mockqtw.MockDialog.setLayout)
         monkeypatch.setattr(testee.qtw, 'QVBoxLayout', mockqtw.MockVBoxLayout)
-        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
-        monkeypatch.setattr(testee.qtw, 'QGridLayout', mockqtw.MockGridLayout)
-        monkeypatch.setattr(testee.qtw, 'QRadioButton', mockqtw.MockRadioButton)
-        monkeypatch.setattr(testee.qtw, 'QLabel', mockqtw.MockLabel)
-        monkeypatch.setattr(testee.qtw, 'QLineEdit', mockqtw.MockLineEdit)
-        monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
-        parent = MockLinterGui()
-        parent.master = MockLinterApp()
-        assert capsys.readouterr().out == ("called LinterGui.__init__ with args () {}\n"
-                                           "called LinterApp.__init__ with args () {}\n")
-        parent.master.title = 'Title'
-        parent.appicon = "app icon"
-        parent.master.quiet_options = {'fname': 'xxx', 'pattern': 'yyy', 'ignore': 'zzz', 'dest': ''}
-        parent.master.dest_from_input = False
-        testobj = testee.QuietOptions(parent)
-        assert isinstance(testobj.single, testee.qtw.QRadioButton)
-        assert isinstance(testobj.fname, testee.qtw.QLineEdit)
-        assert isinstance(testobj.multi, testee.qtw.QRadioButton)
-        assert isinstance(testobj.pattern, testee.qtw.QLineEdit)
-        assert isinstance(testobj.ignore, testee.qtw.QLineEdit)
-        assert capsys.readouterr().out == expected_output['quietoptions'].format(testobj=testobj,
-                                                                                 parent=parent)
-        parent.master.quiet_options = {'fname': 'xxx', 'pattern': 'yyy', 'ignore': 'zzz',
-                                       'dest': testee.Mode.single.name}
-        parent.master.dest_from_input = True
-        testobj = testee.QuietOptions(parent)
-        assert isinstance(testobj.single, testee.qtw.QRadioButton)
-        assert isinstance(testobj.fname, testee.qtw.QLineEdit)
-        assert isinstance(testobj.multi, testee.qtw.QRadioButton)
-        assert isinstance(testobj.pattern, testee.qtw.QLineEdit)
-        assert isinstance(testobj.ignore, testee.qtw.QLineEdit)
-        assert capsys.readouterr().out == expected_output['quietoptions2'].format(testobj=testobj,
-                                                                                  parent=parent)
+        master = 'master'
+        parent = types.SimpleNamespace(appicon='icon')
+        testobj = testee.QuietOptionsGui('master', parent, 'title')
+        assert testobj.parent == parent
+        assert isinstance(testobj.vbox, testee.qtw.QVBoxLayout)
+        assert capsys.readouterr().out == (f"called Dialog.__init__ with args {parent} () {{}}\n"
+                                           "called Dialog.setWindowTitle with args ('title',)\n"
+                                           "called Dialog.setWindowIcon with args ('icon',)\n"
+                                           "called VBox.__init__\n"
+                                           "called Dialog.setLayout with arg MockVBoxLayout\n")
 
-        parent.master.quiet_options = {'fname': 'xxx', 'pattern': 'yyy', 'ignore': 'zzz',
-                                       'dest': testee.Mode.multi.name}
-        testobj = testee.QuietOptions(parent)
-        assert isinstance(testobj.single, testee.qtw.QRadioButton)
-        assert isinstance(testobj.fname, testee.qtw.QLineEdit)
-        assert isinstance(testobj.multi, testee.qtw.QRadioButton)
-        assert isinstance(testobj.pattern, testee.qtw.QLineEdit)
-        assert isinstance(testobj.ignore, testee.qtw.QLineEdit)
-        assert capsys.readouterr().out == expected_output['quietoptions3'].format(testobj=testobj,
-                                                                                  parent=parent)
+    def test_start_line(self, monkeypatch, capsys):
+        """unittest for QuietOptionsGui.start_line
+        """
+        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        assert isinstance(testobj.start_line(), testee.qtw.QHBoxLayout)
+        assert capsys.readouterr().out == ("called HBox.__init__\n")
+
+    def test_add_text_to_line(self, monkeypatch, capsys):
+        """unittest for QuietOptionsGui.add_text_to_line
+        """
+        monkeypatch.setattr(testee.qtw, 'QLabel', mockqtw.MockLabel)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        line = mockqtw.MockHBoxLayout()
+        assert capsys.readouterr().out == "called HBox.__init__\n"
+        testobj.add_text_to_line(line, 'text')
+        assert capsys.readouterr().out == (
+                f"called Label.__init__ with args ('text', {testobj})\n"
+                "called HBox.addWidget with arg MockLabel\n")
+        testobj.add_text_to_line(line, 'text', 5)
+        assert capsys.readouterr().out == (
+                "called HBox.addSpacing\n"
+                f"called Label.__init__ with args ('text', {testobj})\n"
+                "called HBox.addWidget with arg MockLabel\n")
+
+    def test_add_radiobutton_to_line(self, monkeypatch, capsys):
+        """unittest for QuietOptionsGui.add_radiobutton_to_line
+        """
+        monkeypatch.setattr(testee.qtw, 'QRadioButton', mockqtw.MockRadioButton)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        line = mockqtw.MockHBoxLayout()
+        assert capsys.readouterr().out == "called HBox.__init__\n"
+        result = testobj.add_radiobutton_to_line(line, 'text', False)
+        assert isinstance(result, testee.qtw.QRadioButton)
+        assert capsys.readouterr().out == (
+                f"called RadioButton.__init__ with args ('text', {testobj}) {{}}\n"
+                "called HBox.addWidget with arg MockRadioButton\n")
+        result = testobj.add_radiobutton_to_line(line, 'text', True)
+        assert isinstance(result, testee.qtw.QRadioButton)
+        assert capsys.readouterr().out == (
+                f"called RadioButton.__init__ with args ('text', {testobj}) {{}}\n"
+                "called HBox.addWidget with arg MockRadioButton\n"
+                "called RadioButton.setChecked with arg `True`\n")
+
+    def test_add_textentry_to_line(self, monkeypatch, capsys):
+        """unittest for QuietOptionsGui.add_textentry_to_line
+        """
+        monkeypatch.setattr(testee.qtw, 'QLineEdit', mockqtw.MockLineEdit)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        line = mockqtw.MockHBoxLayout()
+        assert capsys.readouterr().out == "called HBox.__init__\n"
+        result = testobj.add_textentry_to_line(line, 'initialtext')
+        assert isinstance(result, testee.qtw.QLineEdit)
+        assert capsys.readouterr().out == ("called LineEdit.__init__\n"
+                                           "called LineEdit.setText with arg `initialtext`\n"
+                                           "called HBox.addWidget with arg MockLineEdit\n")
+        result = testobj.add_textentry_to_line(line, 'initialtext', width=10)
+        assert isinstance(result, testee.qtw.QLineEdit)
+        assert capsys.readouterr().out == ("called LineEdit.__init__\n"
+                                           "called LineEdit.setMaximumWidth with arg `10`\n"
+                                           "called LineEdit.setMinimumWidth with arg `10`\n"
+                                           "called LineEdit.setText with arg `initialtext`\n"
+                                           "called HBox.addWidget with arg MockLineEdit\n")
+
+    def test_add_button_to_line(self, monkeypatch, capsys):
+        """unittest for QuietOptionsGui.add_button_to_line
+        """
+        def callback():
+            "dummy function for reference"
+        monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        line = mockqtw.MockHBoxLayout()
+        assert capsys.readouterr().out == "called HBox.__init__\n"
+        testobj.add_button_to_line(line, 'text', callback)
+        assert capsys.readouterr().out == (
+                f"called PushButton.__init__ with args ('text', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback},)\n"
+                "called HBox.addWidget with arg MockPushButton\n")
+
+    def test_end_line(self, monkeypatch, capsys):
+        """unittest for QuietOptionsGui.end_line
+        """
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.vbox = mockqtw.MockVBoxLayout()
+        line = mockqtw.MockHBoxLayout()
+        assert capsys.readouterr().out == "called VBox.__init__\ncalled HBox.__init__\n"
+        testobj.end_line(line)
+        assert capsys.readouterr().out == ("called HBox.addStretch\n"
+                                           "called VBox.addLayout with arg MockHBoxLayout\n")
+
+    def test_add_buttons(self, monkeypatch, capsys):
+        """unittest for QuietOptionsGui.add_buttons
+        """
+        def callback1():
+            "dummy function for reference"
+        def callback2():
+            "dummy function for reference"
+        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
+        monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.vbox = mockqtw.MockVBoxLayout()
+        assert capsys.readouterr().out == "called VBox.__init__\n"
+        testobj.add_buttons([('xx', callback1), ('yy', callback2)])
+        assert capsys.readouterr().out == (
+                "called HBox.__init__\n"
+                "called HBox.addStretch\n"
+                f"called PushButton.__init__ with args ('xx', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback1},)\n"
+                "called HBox.addWidget with arg MockPushButton\n"
+                f"called PushButton.__init__ with args ('yy', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback2},)\n"
+                "called HBox.addWidget with arg MockPushButton\n"
+                "called HBox.addStretch\n"
+                "called VBox.addLayout with arg MockHBoxLayout\n")
 
     def _test_browse(self, monkeypatch, capsys):
-        """unittest for QuietOptions.browse
+        """unittest for QuietOptionsGui.browse
         """
-        # not implemented, no test necessary
-        # testobj = self.setup_testobj(monkeypatch, capsys)
-        # assert testobj.browse() == "expected_result"
-        # assert capsys.readouterr().out == ("")
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        assert testobj.browse() == "expected_result"
+        assert capsys.readouterr().out == ("")
+        # is nog TODO, dus nog geen testmethode
 
     def test_accept(self, monkeypatch, capsys):
-        """unittest for QuietOptions.accept
+        """unittest for QuietOptionsGui.accept
         """
+        def mock_confirm():
+            print('called FilterOptions.confirm')
         monkeypatch.setattr(testee.qtw.QDialog, 'accept', mockqtw.MockDialog.accept)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.single = mockqtw.MockRadioButton()
-        testobj.fname = mockqtw.MockLineEdit('xxx')
-        testobj.pattern = mockqtw.MockLineEdit('yyy')
-        testobj.ignore = mockqtw.MockLineEdit('zzz')
-        assert capsys.readouterr().out == ("called RadioButton.__init__ with args () {}\n"
-                                           + 'called LineEdit.__init__\n' * 3)
+        testobj.master = types.SimpleNamespace(confirm=mock_confirm)
         testobj.accept()
-        assert capsys.readouterr().out == ('called RadioButton.isChecked\n'
-                                           + 'called LineEdit.text\n' * 3 + 'called Dialog.accept\n')
+        assert capsys.readouterr().out == ("called FilterOptions.confirm\n"
+                                           "called Dialog.accept\n")
+
+    def test_set_radiobutton_value(self, monkeypatch, capsys):
+        """unittest for QuietOptionsGui.set_radiobutton_value
+        """
+        rb = mockqtw.MockRadioButton()
+        assert capsys.readouterr().out == "called RadioButton.__init__ with args () {}\n"
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.set_radiobutton_value(rb, 'value')
+        assert capsys.readouterr().out == "called RadioButton.setChecked with arg `value`\n"
+
+    def test_get_radiobutton_value(self, monkeypatch, capsys):
+        """unittest for QuietOptionsGui.get_radiobutton_value
+        """
+        rb = mockqtw.MockRadioButton()
+        assert capsys.readouterr().out == "called RadioButton.__init__ with args () {}\n"
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        assert not testobj.get_radiobutton_value(rb)
+        assert capsys.readouterr().out == "called RadioButton.isChecked\n"
+
+    def test_set_textentry_value(self, monkeypatch, capsys):
+        """unittest for QuietOptionsGui.set_textentry_value
+        """
+        textfield = mockqtw.MockLineEdit()
+        assert capsys.readouterr().out == "called LineEdit.__init__\n"
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.set_textentry_value(textfield, 'value')
+        assert capsys.readouterr().out == "called LineEdit.setText with arg `value`\n"
+
+    def test_get_textentry_value(self, monkeypatch, capsys):
+        """unittest for QuietOptionsGui.get_textentry_value
+        """
+        textfield = mockqtw.MockLineEdit()
+        assert capsys.readouterr().out == "called LineEdit.__init__\n"
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        assert testobj.get_textentry_value(textfield) == ""
+        assert capsys.readouterr().out == "called LineEdit.text\n"
 
 
-class TestSelectNames:
-    """unittest for qtgui.SelectNames
+class TestSelectNamesGui:
+    """unittests for qtgui.SelectNamesGui
     """
     def setup_testobj(self, monkeypatch, capsys):
-        """stub for qtgui.SelectNames object
+        """stub for qtgui.SelectNamesGui object
 
         create the object skipping the normal initialization
         intercept messages during creation
@@ -619,122 +893,201 @@ class TestSelectNames:
         def mock_init(self, *args):
             """stub
             """
-            print('called SelectNames.__init__ with args', args)
-        monkeypatch.setattr(testee.SelectNames, '__init__', mock_init)
-        testobj = testee.SelectNames()
-        testobj.parent = MockLinterGui()
-        testobj.parent.master = MockLinterApp()
-        assert capsys.readouterr().out == ('called SelectNames.__init__ with args ()\n'
-                                           "called LinterGui.__init__ with args () {}\n"
-                                           "called LinterApp.__init__ with args () {}\n")
+            print('called SelectNamesGui.__init__ with args', args)
+        monkeypatch.setattr(testee.SelectNamesGui, '__init__', mock_init)
+        testobj = testee.SelectNamesGui()
+        assert capsys.readouterr().out == 'called SelectNamesGui.__init__ with args ()\n'
         return testobj
 
-    def test_init(self, monkeypatch, capsys, expected_output):
-        """unittest for SelectNames.__init__
+    def test_init(self, monkeypatch, capsys):
+        """unittest for SelectNamesGui.__init__
         """
         monkeypatch.setattr(testee.qtw.QDialog, '__init__', mockqtw.MockDialog.__init__)
         monkeypatch.setattr(testee.qtw.QDialog, 'setWindowTitle', mockqtw.MockDialog.setWindowTitle)
         monkeypatch.setattr(testee.qtw.QDialog, 'setWindowIcon', mockqtw.MockDialog.setWindowIcon)
         monkeypatch.setattr(testee.qtw.QDialog, 'setLayout', mockqtw.MockDialog.setLayout)
         monkeypatch.setattr(testee.qtw, 'QVBoxLayout', mockqtw.MockVBoxLayout)
+        master = 'master'
+        parent = types.SimpleNamespace(appicon='icon')
+        testobj = testee.SelectNamesGui('master', parent, 'title')
+        assert testobj.parent == parent
+        assert isinstance(testobj.vbox, testee.qtw.QVBoxLayout)
+        assert capsys.readouterr().out == (f"called Dialog.__init__ with args {parent} () {{}}\n"
+                                           "called Dialog.setWindowTitle with args ('title',)\n"
+                                           "called Dialog.setWindowIcon with args ('icon',)\n"
+                                           "called VBox.__init__\n"
+                                           "called Dialog.setLayout with arg MockVBoxLayout\n")
+
+    def test_start_line(self, monkeypatch, capsys):
+        """unittest for SelectNamesGui.start_line
+        """
         monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
-        monkeypatch.setattr(testee.gui, 'QIcon', mockqtw.MockIcon)
-        monkeypatch.setattr(testee.qtw, 'QFrame', mockqtw.MockFrame)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.vbox = mockqtw.MockVBoxLayout()
+        assert capsys.readouterr().out == "called VBox.__init__\n"
+        assert isinstance(testobj.start_line(), testee.qtw.QHBoxLayout)
+        assert capsys.readouterr().out == ("called HBox.__init__\n"
+                                           "called VBox.addLayout with arg MockHBoxLayout\n")
+
+    def test_add_text_to_line(self, monkeypatch, capsys):
+        """unittest for SelectNamesGui.add_text_line
+        """
         monkeypatch.setattr(testee.qtw, 'QLabel', mockqtw.MockLabel)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        line = mockqtw.MockHBoxLayout()
+        assert capsys.readouterr().out == "called HBox.__init__\n"
+        testobj.add_text_to_line(line, 'text')
+        assert capsys.readouterr().out == (
+                f"called Label.__init__ with args ('text', {testobj})\n"
+                "called HBox.addWidget with arg MockLabel\n")
+
+    def test_add_checkbox_to_line(self, monkeypatch, capsys):
+        """unittest for SelectNamesGui.add_checkbox_to_line
+        """
+        def callback():
+            "dummy function for reference"
+        monkeypatch.setattr(testee.qtw, 'QCheckBox', mockqtw.MockCheckBox)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        line = mockqtw.MockHBoxLayout()
+        assert capsys.readouterr().out == "called HBox.__init__\n"
+        result = testobj.add_checkbox_to_line(line, 'text', callback)
+        assert isinstance(result, testee.qtw.QCheckBox)
+        assert capsys.readouterr().out == (
+                f"called CheckBox.__init__ with args ('text', {testobj})\n"
+                f"called Signal.connect with args ({callback},)\n"
+                "called HBox.addWidget with arg MockCheckBox\n")
+        result = testobj.add_checkbox_to_line(line, 'text', callback, before=10)
+        assert isinstance(result, testee.qtw.QCheckBox)
+        assert capsys.readouterr().out == (
+                f"called CheckBox.__init__ with args ('text', {testobj})\n"
+                f"called Signal.connect with args ({callback},)\n"
+                "called HBox.addSpacing\n"
+                "called HBox.addWidget with arg MockCheckBox\n")
+
+    def test_add_button_to_line(self, monkeypatch, capsys):
+        """unittest for SelectNamesGui.add_button_to_line
+        """
+        def callback():
+            "dummy function for reference"
+        monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        line = mockqtw.MockHBoxLayout()
+        assert capsys.readouterr().out == "called HBox.__init__\n"
+        testobj.add_button_to_line(line, 'text', callback)
+        assert capsys.readouterr().out == (
+                f"called PushButton.__init__ with args ('text', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback},)\n"
+                "called HBox.addWidget with arg MockPushButton\n")
+        testobj.add_button_to_line(line, 'text', callback, before=10)
+        assert capsys.readouterr().out == (
+                f"called PushButton.__init__ with args ('text', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback},)\n"
+                "called HBox.addSpacing\n"
+                "called HBox.addWidget with arg MockPushButton\n")
+
+    def test_create_checkbox_list(self, monkeypatch, capsys):
+        """unittest for SelectNamesGui.create_checkbox_list
+        """
+        monkeypatch.setattr(testee.qtw, 'QFrame', mockqtw.MockFrame)
+        monkeypatch.setattr(testee.qtw, 'QVBoxLayout', mockqtw.MockVBoxLayout)
+        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
         monkeypatch.setattr(testee.qtw, 'QCheckBox', mockqtw.MockCheckBox)
         monkeypatch.setattr(testee.qtw, 'QScrollArea', mockqtw.MockScrollArea)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.vbox = mockqtw.MockVBoxLayout()
+        assert capsys.readouterr().out == "called VBox.__init__\n"
+        result = testobj.create_checkbox_list(['xx', 'yy'])
+        for item in result:
+            assert isinstance(item, testee.qtw.QCheckBox)
+        assert isinstance(testobj.frm, testee.qtw.QFrame)
+        assert capsys.readouterr().out == (
+                "called Frame.__init__\n"
+                "called VBox.__init__\n"
+                f"called CheckBox.__init__ with args ('xx', {testobj.frm})\n"
+                "called HBox.__init__\n"
+                "called HBox.addWidget with arg MockCheckBox\n"
+                "called VBox.addLayout with arg MockHBoxLayout\n"
+                f"called CheckBox.__init__ with args ('yy', {testobj.frm})\n"
+                "called HBox.__init__\n"
+                "called HBox.addWidget with arg MockCheckBox\n"
+                "called VBox.addLayout with arg MockHBoxLayout\n"
+                "called Frame.setLayout with arg MockVBoxLayout\n"
+                f"called ScrollArea.__init__ with args ({testobj},)\n"
+                "called ScrollArea.setWidget with arg `MockFrame`\n"
+                "called HBox.__init__\n"
+                "called HBox.addWidget with arg MockScrollArea\n"
+                "called VBox.addLayout with arg MockHBoxLayout\n")
+
+    def test_create_button_bar(self, monkeypatch, capsys):
+        """unittest for SelectNamesGui.create_button_bar
+        """
+        def callback1():
+            "dummy function for reference"
+        def callback2():
+            "dummy function for reference"
+        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
         monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
-        parent = MockLinterGui()
-        parent.master = MockLinterApp()
-        assert capsys.readouterr().out == ("called LinterGui.__init__ with args () {}\n"
-                                           "called LinterApp.__init__ with args () {}\n")
-        parent.master.title = 'Title'
-        parent.master.names = ['xxx', 'yyy']
-        parent.appicon = "app icon"
-        testobj = testee.SelectNames(parent)
-        assert testobj.dofiles
-        assert testobj.parent == parent
-        assert isinstance(testobj.sel_all, testee.qtw.QCheckBox)
-        assert isinstance(testobj.flip_sel, testee.qtw.QPushButton)
-        assert len(testobj.checklist) == 2
-        assert isinstance(testobj.checklist[0], testee.qtw.QCheckBox)
-        assert isinstance(testobj.checklist[1], testee.qtw.QCheckBox)
-        assert capsys.readouterr().out == expected_output['selectnames'].format(testobj=testobj)
-        parent.master.names = ['xxx', 'yyy']
-        testobj = testee.SelectNames(parent, files=False)
-        assert not testobj.dofiles
-        assert testobj.parent == parent
-        assert isinstance(testobj.sel_all, testee.qtw.QCheckBox)
-        assert isinstance(testobj.flip_sel, testee.qtw.QPushButton)
-        assert len(testobj.checklist) == 2
-        assert isinstance(testobj.checklist[0], testee.qtw.QCheckBox)
-        assert isinstance(testobj.checklist[1], testee.qtw.QCheckBox)
-        assert capsys.readouterr().out == expected_output['selectnames_2'].format(testobj=testobj)
-
-    def test_select_all(self, monkeypatch, capsys):
-        """unittest for SelectNames.select_all
-        """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.sel_all = mockqtw.MockCheckBox()
-        testobj.checklist = [mockqtw.MockCheckBox(), mockqtw.MockCheckBox()]
-        assert capsys.readouterr().out == "called CheckBox.__init__\n" * 3
-        testobj.select_all()
-        assert capsys.readouterr().out == ("called CheckBox.isChecked\n"
-                                           "called CheckBox.setChecked with arg False\n"
-                                           "called CheckBox.setChecked with arg False\n")
+        testobj.vbox = mockqtw.MockVBoxLayout()
+        assert capsys.readouterr().out == "called VBox.__init__\n"
+        testobj.create_button_bar([('xx', callback1), ('yy', callback2)])
+        assert capsys.readouterr().out == (
+                "called HBox.__init__\n"
+                "called HBox.addStretch\n"
+                f"called PushButton.__init__ with args ('xx', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback1},)\n"
+                "called HBox.addWidget with arg MockPushButton\n"
+                f"called PushButton.__init__ with args ('yy', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback2},)\n"
+                "called HBox.addWidget with arg MockPushButton\n"
+                "called HBox.addStretch\n"
+                "called VBox.addLayout with arg MockHBoxLayout\n")
 
-    def test_invert_selection(self, monkeypatch, capsys):
-        """unittest for SelectNames.invert_selection
+    def test_get_checkbox_text(self, monkeypatch, capsys):
+        """unittest for SelectNamesGui.get_checkbox_text
         """
+        cb = mockqtw.MockCheckBox()
+        assert capsys.readouterr().out == "called CheckBox.__init__\n"
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.checklist = [mockqtw.MockCheckBox(), mockqtw.MockCheckBox()]
-        testobj.checklist[0].setChecked(False)
-        testobj.checklist[1].setChecked(False)
-        assert capsys.readouterr().out == ("called CheckBox.__init__\n"
-                                           "called CheckBox.__init__\n"
-                                           "called CheckBox.setChecked with arg False\n"
-                                           "called CheckBox.setChecked with arg False\n")
-        testobj.invert_selection()
-        assert capsys.readouterr().out == ("called CheckBox.isChecked\n"
-                                           "called CheckBox.setChecked with arg True\n"
-                                           "called CheckBox.isChecked\n"
-                                           "called CheckBox.setChecked with arg True\n")
+        assert not testobj.get_checkbox_text(cb)
+        assert capsys.readouterr().out == "called CheckBox.text\n"
+
+    def test_get_checkbox_value(self, monkeypatch, capsys):
+        """unittest for SelectNamesGui.get_checkbox_value
+        """
+        cb = mockqtw.MockCheckBox()
+        assert capsys.readouterr().out == "called CheckBox.__init__\n"
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        assert not testobj.get_checkbox_value(cb)
+        assert capsys.readouterr().out == "called CheckBox.isChecked\n"
+
+    def test_set_checkbox_value(self, monkeypatch, capsys):
+        """unittest for SelectNamesGui.set_checkbox_value
+        """
+        cb = mockqtw.MockCheckBox()
+        assert capsys.readouterr().out == "called CheckBox.__init__\n"
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.set_checkbox_value(cb, 'value')
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg value\n"
 
     def test_accept(self, monkeypatch, capsys):
-        """unittest for SelectNames.accept
+        """unittest for SelectNamesGui.accept
         """
+        def mock_confirm():
+            print('called FilterOptions.confirm')
         monkeypatch.setattr(testee.qtw.QDialog, 'accept', mockqtw.MockDialog.accept)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.checklist = [mockqtw.MockCheckBox('xxx'), mockqtw.MockCheckBox('yyy')]
-        testobj.checklist[0].setChecked(True)
-        testobj.checklist[1].setChecked(False)
-        assert capsys.readouterr().out == ("called CheckBox.__init__ with args ('xxx',)\n"
-                                           "called CheckBox.__init__ with args ('yyy',)\n"
-                                           "called CheckBox.setChecked with arg True\n"
-                                           "called CheckBox.setChecked with arg False\n")
-
-        testobj.parent.master.names = ['xxx', 'yyy']
-        testobj.dofiles = False
+        testobj.master = types.SimpleNamespace(confirm=mock_confirm)
         testobj.accept()
-        assert testobj.parent.master.names == ['xxx']
-        assert capsys.readouterr().out == ("called CheckBox.isChecked\n"
-                                           "called CheckBox.isChecked\n"
-                                           "called Dialog.accept\n")
-
-        testobj.parent.master.names = ['xxx', 'yyy']
-        testobj.dofiles = True
-        testobj.accept()
-        assert testobj.parent.master.names == ['yyy']
-        assert capsys.readouterr().out == ("called CheckBox.isChecked\n"
-                                           "called CheckBox.isChecked\n"
+        assert capsys.readouterr().out == ("called FilterOptions.confirm\n"
                                            "called Dialog.accept\n")
 
 
-class TestResults:
-    """unittest for qtgui.Results
+class TestResultsGui:
+    """unittests for qtgui.ResultsGui
     """
     def setup_testobj(self, monkeypatch, capsys):
-        """stub for qtgui.Results object
+        """stub for qtgui.ResultsGui object
 
         create the object skipping the normal initialization
         intercept messages during creation
@@ -743,185 +1096,176 @@ class TestResults:
         def mock_init(self, *args):
             """stub
             """
-            print('called Results.__init__ with args', args)
-        monkeypatch.setattr(testee.Results, '__init__', mock_init)
-        testobj = testee.Results()
-        testobj.parent = MockLinterGui()
-        testobj.parent.master = MockLinterApp()
-        testobj.parent.master.do_checks = MockFinder()
-        assert capsys.readouterr().out == ('called Results.__init__ with args ()\n'
-                                           "called LinterGui.__init__ with args () {}\n"
-                                           "called LinterApp.__init__ with args () {}\n")
+            print('called ResultsGui.__init__ with args', args)
+        monkeypatch.setattr(testee.ResultsGui, '__init__', mock_init)
+        testobj = testee.ResultsGui()
+        assert capsys.readouterr().out == 'called ResultsGui.__init__ with args ()\n'
         return testobj
 
-    def test_init(self, monkeypatch, capsys, expected_output):
-        """unittest for Results.__init__
+    def test_init(self, monkeypatch, capsys):
+        """unittest for ResultsGui.__init__
         """
         monkeypatch.setattr(testee.qtw.QDialog, '__init__', mockqtw.MockDialog.__init__)
         monkeypatch.setattr(testee.qtw.QDialog, 'setWindowTitle', mockqtw.MockDialog.setWindowTitle)
         monkeypatch.setattr(testee.qtw.QDialog, 'setWindowIcon', mockqtw.MockDialog.setWindowIcon)
         monkeypatch.setattr(testee.qtw.QDialog, 'setLayout', mockqtw.MockDialog.setLayout)
-        monkeypatch.setattr(testee.qtw.QWidget, 'resize', mockqtw.MockWidget.resize)
-        monkeypatch.setattr(testee.qtw.QDialog, 'exec', mockqtw.MockDialog.exec)
+        monkeypatch.setattr(testee.qtw.QDialog, 'resize', mockqtw.MockDialog.resize)
         monkeypatch.setattr(testee.qtw, 'QVBoxLayout', mockqtw.MockVBoxLayout)
+        master = 'master'
+        parent = types.SimpleNamespace(appicon='icon')
+        testobj = testee.ResultsGui('master', parent, 'title', 26)
+        assert isinstance(testobj.vbox, testee.qtw.QVBoxLayout)
+        assert capsys.readouterr().out == (f"called Dialog.__init__ with args {parent} () {{}}\n"
+                                           "called Dialog.setWindowTitle with args ('title',)\n"
+                                           "called Dialog.setWindowIcon with args ('icon',)\n"
+                                           "called VBox.__init__\n"
+                                           "called Dialog.setLayout with arg MockVBoxLayout\n"
+                                           "called Dialog.resize with args (600, 480)\n")
+
+    def test_add_top_text(self, monkeypatch, capsys):
+        """unittest for ResultsGui.add_top_text
+        """
         monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
-        monkeypatch.setattr(testee.gui, 'QFont', mockqtw.MockFont)
+        monkeypatch.setattr(testee.qtw, 'QLabel', mockqtw.MockLabel)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.vbox = mockqtw.MockVBoxLayout()
+        assert capsys.readouterr().out == "called VBox.__init__\n"
+        testobj.add_top_text('text')
+        assert capsys.readouterr().out == ("called HBox.__init__\n"
+                                           f"called Label.__init__ with args ('text', {testobj})\n"
+                                           "called HBox.addWidget with arg MockLabel\n"
+                                           "called VBox.addLayout with arg MockHBoxLayout\n")
+
+    def test_add_combobox_line(self, monkeypatch, capsys):
+        """unittest for ResultsGui.add_combobox_line
+        """
+        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
         monkeypatch.setattr(testee.qtw, 'QLabel', mockqtw.MockLabel)
         monkeypatch.setattr(testee.qtw, 'QComboBox', mockqtw.MockComboBox)
-        monkeypatch.setattr(testee.qtw, 'QTextEdit', mockqtw.MockEditorWidget)
-        monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
-        parent = MockLinterGui()
-        parent.master = MockLinterApp()
-        parent.master.do_checks = MockFinder()
-        assert capsys.readouterr().out == ("called LinterGui.__init__ with args () {}\n"
-                                           "called LinterApp.__init__ with args () {}\n")
-        parent.master.resulttitel = 'Title'
-        parent.master.names = ['xxx', 'yyy']
-        parent.appicon = "app icon"
-        parent.master.mode = ''
-        testobj = testee.Results(parent, common_path='')
-        assert testobj.parent == parent
-        assert testobj.common == ''
-        assert testobj.results == []
-        assert isinstance(testobj.txt, testee.qtw.QLabel)
-        assert isinstance(testobj.filelist, testee.qtw.QComboBox)
-        assert isinstance(testobj.lijst, testee.qtw.QTextEdit)
-        assert capsys.readouterr().out == expected_output['results'].format(testobj=testobj)
-        parent.master.mode = testee.Mode.multi.value
-        monkeypatch.setattr(testee, 'common_path_txt', '{} yyy')
-        testobj = testee.Results(parent, common_path='xxx')
-        assert testobj.parent == parent
-        assert testobj.common == 'xxx'
-        assert testobj.results == []
-        assert isinstance(testobj.txt, testee.qtw.QLabel)
-        assert isinstance(testobj.filelist, testee.qtw.QComboBox)
-        assert isinstance(testobj.lijst, testee.qtw.QTextEdit)
-        assert capsys.readouterr().out == expected_output['results2'].format(testobj=testobj)
-
-    def test_populate_list(self, monkeypatch, capsys):
-        """unittest for Results.populate_list
-        """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.filelist = mockqtw.MockComboBox()
-        testobj.filelist.setCurrentText('text')
-        testobj.lijst = mockqtw.MockEditorWidget()
-        assert capsys.readouterr().out == ("called ComboBox.__init__\n"
-                                           "called ComboBox.setCurrentText with arg `text`\n"
-                                           "called Editor.__init__\n")
-        testobj.populate_list()
-        assert capsys.readouterr().out == ("called ComboBox.currentText\n"
-                                           "called Editor.setText with arg `abcd`\n")
+        testobj.master = types.SimpleNamespace(populate_list=lambda: 'dummy')
+        testobj.vbox = mockqtw.MockVBoxLayout()
+        assert capsys.readouterr().out == "called VBox.__init__\n"
+        result = testobj.add_combobox_line('text', ['it', 'ems'])
+        assert isinstance(result[0], testee.qtw.QHBoxLayout)
+        assert isinstance(result[1], testee.qtw.QComboBox)
+        assert capsys.readouterr().out == (
+                "called HBox.__init__\n"
+                "called VBox.addLayout with arg MockHBoxLayout\n"
+                f"called Label.__init__ with args ('text', {testobj})\n"
+                "called HBox.addWidget with arg MockLabel\n"
+                "called ComboBox.__init__\n"
+                "called ComboBox.addItems with arg ['it', 'ems']\n"
+                "called ComboBox.setEditable with arg `False`\n"
+                f"called Signal.connect with args ({testobj.master.populate_list},)\n"
+                "called HBox.addWidget with arg MockComboBox\n"
+                "called HBox.addStretch\n")
+
+    def test_add_button_to_line(self, monkeypatch, capsys):
+        """unittest for ResultsGui.add_button_to_line
+        """
+        def callback():
+            "dummy function"
+        monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        hbox = mockqtw.MockHBoxLayout()
+        assert capsys.readouterr().out == "called HBox.__init__\n"
+        testobj.add_button_to_line(hbox, 'text', callback)
+        assert capsys.readouterr().out == (
+                f"called PushButton.__init__ with args ('text', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback},)\n"
+                "called HBox.addWidget with arg MockPushButton\n")
+
+    def test_add_results_list(self, monkeypatch, capsys):
+        """unittest for ResultsGui.add_results_list
+        """
+        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
+        monkeypatch.setattr(testee.gui, 'QFont', mockqtw.MockFont)
+        monkeypatch.setattr(testee.qtw, 'QTextEdit', mockqtw.MockEditorWidget)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.vbox = mockqtw.MockVBoxLayout()
+        assert capsys.readouterr().out == "called VBox.__init__\n"
+        assert isinstance(testobj.add_results_list(), testee.qtw.QTextEdit)
+        assert capsys.readouterr().out == ("called HBox.__init__\n"
+                                           f"called Editor.__init__ with args ({testobj},)\n"
+                                           "called Font.__init__\n"
+                                           "called Font.setFamily\n"
+                                           "called Font.setFixedPitch with arg `True`\n"
+                                           "called Font.setPointSize\n"
+                                           "called Editor.setCurrentFont\n"
+                                           "called Editor.setReadOnly with arg `True`\n"
+                                           "called HBox.addWidget with arg MockEditorWidget\n"
+                                           "called VBox.addLayout with arg MockHBoxLayout\n")
+
+    def test_add_buttons(self, monkeypatch, capsys):
+        """unittest for ResultsGui.add_buttons
+        """
+        def callback1():
+            "dummy function"
+        def callback2():
+            "dummy function"
+        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
+        monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.vbox = mockqtw.MockVBoxLayout()
+        assert capsys.readouterr().out == "called VBox.__init__\n"
+        testobj.add_buttons([('xx', callback1), ('yy', callback2)])
+        assert capsys.readouterr().out == (
+                "called HBox.__init__\n"
+                "called HBox.addStretch\n"
+                f"called PushButton.__init__ with args ('xx', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback1},)\n"
+                "called HBox.addWidget with arg MockPushButton\n"
+                f"called PushButton.__init__ with args ('yy', {testobj}) {{}}\n"
+                f"called Signal.connect with args ({callback2},)\n"
+                "called HBox.addWidget with arg MockPushButton\n"
+                "called HBox.addStretch\n"
+                "called VBox.addLayout with arg MockHBoxLayout\n")
+
+    def test_get_combobox_value(self, monkeypatch, capsys):
+        """unittest for ResultsGui.get_combobox_value
+        """
+        cmb = mockqtw.MockComboBox()
+        assert capsys.readouterr().out == "called ComboBox.__init__\n"
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        assert testobj.get_combobox_value(cmb) == "current text"
+        assert capsys.readouterr().out == "called ComboBox.currentText\n"
+
+    def test_set_combobox_value(self, monkeypatch, capsys):
+        """unittest for ResultsGui.set_combobox_value
+        """
+        cmb = mockqtw.MockComboBox()
+        assert capsys.readouterr().out == "called ComboBox.__init__\n"
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.set_combobox_value(cmb, 'value')
+        assert capsys.readouterr().out == ("called ComboBox.setCurrentIndex with arg `value`\n")
+
+    def test_set_textbox_value(self, monkeypatch, capsys):
+        """unittest for ResultsGui.set_textbox_value
+        """
+        textbox = mockqtw.MockEditorWidget()
+        assert capsys.readouterr().out == "called Editor.__init__\n"
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.set_textbox_value(textbox, '')
+        assert capsys.readouterr().out == "called Editor.clear\n"
+        testobj.set_textbox_value(textbox, 'text')
+        assert capsys.readouterr().out == ("called Editor.clear\n"
+                                           "called Editor.setText with arg `text`\n")
 
     def test_klaar(self, monkeypatch, capsys):
-        """unittest for Results.klaar
+        """unittest for ResultsGui.klaar
         """
         monkeypatch.setattr(testee.qtw.QDialog, 'done', mockqtw.MockDialog.done)
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.klaar()
-        assert capsys.readouterr().out == ("called Dialog.done with arg `0`\n")
+        assert capsys.readouterr().out == "called Dialog.done with arg `0`\n"
 
-    def test_refresh(self, monkeypatch, capsys):
-        """unittest for Results.refresh
+    def test_copy_to_clipboard(self, monkeypatch, capsys):
+        """unittest for ResultsGui.copy_to_clipboard
         """
-        def mock_populate():
-            print('called Results.populate_list')
+        monkeypatch.setattr(testee.qtw, 'QApplication', mockqtw.MockApplication)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.populate_list = mock_populate
-        testobj.lijst = mockqtw.MockEditorWidget()
-        testobj.filelist = mockqtw.MockComboBox()
-        testobj.refresh()
-        assert capsys.readouterr().out == ("called Editor.__init__\n"
-                                           "called ComboBox.__init__\n"
-                                           "called Editor.clear\n"
-                                           "called LinterGui.execute_action\n"
-                                           "called Results.populate_list\n"
-                                           "called ComboBox.setCurrentIndex with arg `0`\n")
-
-    def test_kopie(self, monkeypatch, capsys, tmp_path):
-        """unittest for Results.kopie
-        """
-        def mock_exec(self):
-            print('called Dialog.exec')
-            return True
-        def mock_out(*args):
-            print("called LinterApp.get_output_filename with args", args)
-            if len(args) == 1:
-                return str(tmp_path / args[0])
-            return str(tmp_path / args[0].format(args[1]))
-        monkeypatch.setattr(testee, 'QuietOptions', mockqtw.MockDialog)
-        monkeypatch.setattr(testee.qtw.QMessageBox, 'information', mockqtw.MockMessageBox.information)
-        testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.parent.master.title = 'title'
-        testobj.parent.master.do_checks.results = {'xx': 'abcdefg', 'yy': 'hijklmn'}
-        testobj.parent.master.get_output_filename = mock_out
-        testobj.parent.newquietoptions = {'single_file': True, 'fname': 'filename'}
-        testobj.kopie()
-        assert capsys.readouterr().out == (
-                f"called Dialog.__init__ with args {testobj.parent} () {{}}\n"
-                "called Dialog.exec\n")
-        monkeypatch.setattr(testee.QuietOptions, 'exec', mock_exec)
-        # breakpoint()
-        testobj.kopie()
-        assert (tmp_path / 'filename').read_text() == ('results for xx\n\nabcdefg\n\n\n'
-                                                       'results for yy\n\nhijklmn\n')
-        assert capsys.readouterr().out == (
-                f"called Dialog.__init__ with args {testobj.parent} () {{}}\n"
-                "called Dialog.exec\n"
-                f"called LinterApp.get_output_filename with args ('filename',)\n"
-                f"called MessageBox.information with args `{testobj}` `title`"
-                f" `Output saved as {tmp_path}/filename`\n")
-        testobj.parent.newquietoptions = {'single_file': False, 'pattern': '{}z'}
-        testobj.kopie()
-        assert (tmp_path / 'xxz').read_text() == 'results for xx\n\nabcdefg\n'
-        assert (tmp_path / 'yyz').read_text() == 'results for yy\n\nhijklmn\n'
-        assert capsys.readouterr().out == (
-                f"called Dialog.__init__ with args {testobj.parent} () {{}}\n"
-                "called Dialog.exec\n"
-                f"called LinterApp.get_output_filename with args ('{{}}z', 'xx')\n"
-                f"called LinterApp.get_output_filename with args ('{{}}z', 'yy')\n"
-                f"called MessageBox.information with args `{testobj}` `title`"
-                f" `Last output saved as {tmp_path}/yyz`\n")
-
-    def test_help(self, monkeypatch, capsys):
-        """unittest for Results.help
-        """
-        monkeypatch.setattr(testee.qtw.QMessageBox, 'information', mockqtw.MockMessageBox.information)
-        testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.parent.master.title = 'title'
-        testobj.helpinfo = "help info"
-        testobj.help()
-        assert capsys.readouterr().out == (
-                f"called MessageBox.information with args `{testobj}` `title` `help info`\n")
-
-    def test_to_clipboard(self, monkeypatch, capsys):
-        """unittest for Results.to_clipboard
-        """
-        monkeypatch.setattr(testee.qtw.QApplication, 'clipboard',
-                            mockqtw.MockApplication.clipboard)
-        monkeypatch.setattr(testee.qtw.QMessageBox, 'information', mockqtw.MockMessageBox.information)
-        testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.parent.master.title = 'title'
-        testobj.parent.master.do_checks.results = {'xx': 'abcdefg', 'yy': 'hijklmn'}
-        testobj.to_clipboard()
-        assert capsys.readouterr().out == (
-                "called Application.clipboard\n"
-                "called ClipBoard.__init__\n"
-                "called Clipboard.setText with arg 'results for xx\n\nabcdefg\n\n\n"
-                "results for yy\n\nhijklmn'\n"
-                "called MessageBox.information with args"
-                f" `{testobj}` `title` `Output copied to clipboard`\n")
-
-    def test_goto_result(self, monkeypatch, capsys):
-        """unittest for Results.goto_result
-        """
-        def mock_run(*args, **kwargs):
-            print('called subprocess.run with args', args, kwargs)
-        monkeypatch.setattr(testee.subprocess, 'run', mock_run)
-        testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.parent.master.editor_option = [['x', 'y'], '{}', 'a', 'b']
-        testobj.filelist = mockqtw.MockComboBox()
-        testobj.goto_result()
-        assert capsys.readouterr().out == (
-                "called ComboBox.__init__\n"
-                "called ComboBox.currentText\n"
-                "called subprocess.run with args (['x', 'y', 'current text'],) {'check': False}\n")
+        testobj.copy_to_clipboard('data')
+        assert capsys.readouterr().out == ("called Application.clipboard\n"
+                                           "called ClipBoard.__init__\n"
+                                           "called Clipboard.setText with arg 'data'\n")

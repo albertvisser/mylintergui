@@ -1,17 +1,10 @@
 """AFRIFT PyQt5 versie omgebouwd naar gebruik pylint / flake8
 """
-import os
+# import os
 import sys
-import subprocess
 import PyQt6.QtCore as core
 import PyQt6.QtGui as gui
 import PyQt6.QtWidgets as qtw
-
-# from .linter_base import iconame, LBase, log, Mode
-from .config import Mode, cmddict, checktypes, default_option
-common_path_txt = 'De bestanden staan allemaal in of onder de directory "{}"'
-TXTW = 200
-SEP = ', '
 
 
 def waiting_cursor(func):
@@ -24,10 +17,16 @@ def waiting_cursor(func):
     return wrap_operation
 
 
-def show_dialog(cls, *args, **kwargs):
+def show_dialog(dlg):  # (cls, *args, **kwargs):
     "execute the given dialog and return whether it's confirmed or not"
-    dlg = cls(*args, **kwargs).exec()
-    return dlg == qtw.QDialog.DialogCode.Accepted
+    # dlg = cls(*args, **kwargs).exec()
+    # return dlg == qtw.QDialog.DialogCode.Accepted
+    return dlg.exec() == qtw.QDialog.DialogCode.Accepted
+
+
+def show_message(parent, title, message):
+    "show a nessage in a message box"
+    qtw.QMessageBox.information(parent, title, message)
 
 
 class LinterGui(qtw.QWidget):
@@ -44,156 +43,103 @@ class LinterGui(qtw.QWidget):
         self.appicon = gui.QIcon(self.master.iconame)
         self.setWindowIcon(self.appicon)
 
-    def setup_screen(self):
+    def start_display(self):
         "build gui"
         self.grid = qtw.QGridLayout()
         self.row = -1
 
+    def build_radiobutton_row(self, title, optiondefs):
+        "build horizontal selector for linter severity"
         self.row += 1
+        self.grid.addWidget(qtw.QLabel(title, self), self.row, 0)
+        options = qtw.QButtonGroup()
         box = qtw.QHBoxLayout()
-        box.addWidget(qtw.QLabel('Type of check:', self))
-        self.check_options = qtw.QButtonGroup()
-        options = ['&' + checktype.title() for checktype in checktypes]
-        for text in options:
-            self.check_options.addButton(qtw.QRadioButton(text, self))
-        dflt_id = ''
-        for btn in self.check_options.buttons():
+        # dflt_id = ''
+        for text, checked in optiondefs:
+            btn = qtw.QRadioButton(text, self)
+            options.addButton(btn)
             box.addWidget(btn)
-            if btn.text() == '&' + str(self.master.checking_type).title():
+            # if btn.text() == '&' + str(self.master.checking_type).title():
+            if checked:
                 btn.setChecked(True)
-            if btn.text() == options[default_option]:
-                dflt_id = self.check_options.id(btn)
-        if not self.check_options.checkedButton() and dflt_id:
-            self.check_options.button(dflt_id).setChecked(True)
-        self.grid.addLayout(box, self.row, 0, 1, 2)
+            # if btn.text() == optiondefs[default_option]:
+            #     dflt_id = options.id(btn)
+        # if not options.checkedButton() and dflt_id:
+        #     options.button(dflt_id).setChecked(True)
+        self.grid.addLayout(box, self.row, 1, 1, 2)
+        return options
 
+    def build_radiobutton_block(self, title, optiondefs):
+        "build vertical selector for which linter to use"
         self.row += 1
-        box = qtw.QVBoxLayout()
-        box.addSpacing(5)
-        box.addWidget(qtw.QLabel('Check using:', self))
-        box.addStretch()
-        self.grid.addLayout(box, self.row, 0, 2, 1)
-        self.linters = qtw.QButtonGroup(self)
-
-        for linter in cmddict:
+        self.grid.addWidget(qtw.QLabel(title, self), self.row, 0)
+        options = qtw.QButtonGroup()
+        for text, checked in optiondefs:
             box = qtw.QHBoxLayout()
-            linter_text = 'py&lint' if linter == 'pylint' else '&' + linter
-            btn = qtw.QRadioButton(linter_text.title(), self)
-            self.linters.addButton(btn)
+            btn = qtw.QRadioButton(text.title(), self)
+            options.addButton(btn)
             box.addWidget(btn)
-            if self.master.linter_from_input == linter:
+            # if self.master.linter_from_input == text.replace('&', ''):
+            if checked:
                 btn.setChecked(True)
+            # self.grid.addWidget(btn, self.row, 1)
             btn = qtw.QPushButton('Configure', self)
             btn.clicked.connect(self.master.configure_linter)
             box.addWidget(btn)
             box.addStretch()
             self.grid.addLayout(box, self.row, 1)
+            # self.grid.addWidget(btn, self.row, 2)
             self.row += 1
+        return options
 
-        if self.master.mode == Mode.single.value:
-            self.grid.addWidget(qtw.QLabel('In file/directory:', self), self.row, 0)
-            box = qtw.QHBoxLayout()
-            box.addWidget(qtw.QLabel(self.master.p['filelist'][0], self))
-            box.addStretch()
-            self.grid.addLayout(box, self.row, 1)
-        elif self.master.mode == Mode.standard.value:
-            initial = ''
-            if self.master.p['filelist']:
-                initial = self.master.p['filelist'][0]
-            self.zoek = qtw.QPushButton("&Zoek")
-            self.zoek.clicked.connect(self.zoekdir)
-            self.vraag_dir = self.add_combobox_row("In directory:", self.master._mru_items["dirs"],
-                                                   initial=initial, button=self.zoek)
-            self.vraag_dir.setCompleter(None)
-            self.vraag_dir.editTextChanged[str].connect(self.master.check_loc)
-        else:  # if self.master.mode == Mode.multi.value:  # currently only other possibility
-            self.grid.addWidget(qtw.QLabel('In de volgende files/directories:', self), self.row,
-                                0, 1, 3)
-            self.row += 1
-            self.lbox = qtw.QListWidget(self)
-            self.lbox.insertItems(0, self.master.p['filelist'])
-            self.grid.addWidget(self.lbox, self.row, 0, 1, 3)
-
-        if self.master.mode != Mode.single.value:
-            self.row += 1
-            self.conf_filter = qtw.QPushButton('Configure', self)
-            self.conf_filter.clicked.connect(self.master.configure_filter)
-            self.vraag_filter = self.add_checkbox_row('Use global whitelist/blacklist',
-                                                      toggle=True, button=self.conf_filter)
-        if self.master.mode == Mode.standard.value:
-            self.row += 1
-            self.master.p['fromrepo'] = self.master.repo_only
-            self.vraag_repo = self.add_checkbox_row(
-                'Check repository files only (also does subdirectories)',
-                self.master.p['fromrepo'])
-        if self.master.mode != Mode.single.value or os.path.isdir(self.master.p['filelist'][0]):
-            txt = ''
-            if self.master.mode == Mode.multi.value:
-                txt = "van geselecteerde directories "
-            self.vraag_subs = self.add_checkbox_row(
-                txt + "ook subdirectories doorzoeken", self.master.p["subdirs"])
-            self.vraag_diepte = qtw.QSpinBox(self)
-            self.vraag_diepte.setMinimum(-1)
-            self.vraag_diepte.setValue(5)
-            self.vraag_links = self.add_checkbox_row("symlinks volgen - max. diepte (-1 is alles):",
-                                                     spinner=self.vraag_diepte)
-            self.ask_skipdirs = self.add_checkbox_row("selecteer (sub)directories om over te slaan")
-            self.ask_skipfiles = self.add_checkbox_row("selecteer bestanden om over te slaan")
-        self.row += 1
-        self.conf_quiet = qtw.QPushButton('Configure', self)
-        self.conf_quiet.clicked.connect(self.master.configure_quiet)
-        self.vraag_quiet = self.add_checkbox_row('Output to file(s) directly',
-                                                 toggle=self.master.dest_from_input,
-                                                 button=self.conf_quiet)
-        self.row += 1
-        hbox = qtw.QHBoxLayout()
-        hbox.addStretch(1)
-        self.b_doit = qtw.QPushButton('&Uitvoeren', self)
-        self.b_doit.clicked.connect(self.master.doe)
-        hbox.addWidget(self.b_doit)
-        self.b_cancel = qtw.QPushButton('&Einde', self)
-        self.b_cancel.clicked.connect(self.close)
-        hbox.addWidget(self.b_cancel)
-        hbox.addStretch(1)
-        self.grid.addLayout(hbox, self.row, 0, 1, 2)
-
-        vbox = qtw.QVBoxLayout()
-        vbox.addLayout(self.grid)
-
-        self.setLayout(vbox)
-        self.linters.buttons()[0].setFocus()
-
-        self.show()
-        if self.master.skip_screen:
-            self.master.doe()
-            self.close()
-        else:
-            sys.exit(self.app.exec())
-
-    def add_combobox_row(self, labeltext, itemlist, initial='', button=None):
+    def add_combobox_row(self, labeltext, itemlist, initial='', width=0, callback=None, button=None):
         """add a line to the GUI containing a combobox
         """
         self.row += 1
         self.grid.addWidget(qtw.QLabel(labeltext), self.row, 0)
         cmb = qtw.QComboBox(self)
-        cmb.setMaximumWidth(TXTW)
-        cmb.setMinimumWidth(TXTW)
+        if width:
+            cmb.setMaximumWidth(width)
+            cmb.setMinimumWidth(width)
         cmb.insertItems(0, itemlist)
         cmb.setEditable(True)
         cmb.clearEditText()
         if initial:
             cmb.setEditText(initial)
+        cmb.setCompleter(None)
+        if callback:
+            cmb.editTextChanged[str].connect(callback)
+            # cmb.editTextChanged.connect(callback)
         if button:
             box = qtw.QHBoxLayout()
+            btn = qtw.QPushButton(button[0])
+            btn.clicked.connect(button[1])
             box.addWidget(cmb)
-            box.addWidget(button)
+            box.addWidget(btn)
             box.addStretch()
             self.grid.addLayout(box, self.row, 1)
         else:
             self.grid.addWidget(cmb, self.row, 1)
         return cmb
 
-    def add_checkbox_row(self, text, toggle=False, spinner=None, button=None):
+    def show_single_mode_info(self, locationtext, value):
+        "show which file will be linted"
+        self.row += 1
+        self.grid.addWidget(qtw.QLabel(locationtext, self), self.row, 0)
+        box = qtw.QHBoxLayout()
+        box.addWidget(qtw.QLabel(value, self))
+        # box.addStretch()
+        self.grid.addLayout(box, self.row, 1, 1, 2)
+
+    def show_multi_mode_info(self, locationtext, values):
+        "show the files / directories to apply linting to"
+        self.row += 1
+        self.grid.addWidget(qtw.QLabel(locationtext, self), self.row, 0, 1, 3)
+        lbox = qtw.QListWidget(self)
+        lbox.insertItems(0, values)
+        self.grid.addWidget(lbox, self.row, 0, 1, 3)
+
+    def add_checkbox_line(self, text, toggle=False, spinner=None, button=None):
         """add a line to the GUI containing a checkbox
         """
         self.row += 1
@@ -205,15 +151,45 @@ class LinterGui(qtw.QWidget):
         if spinner or button:
             box.addWidget(chk)
         if spinner:
-            box.addWidget(spinner)
+            spin = qtw.QSpinBox(self)
+            spin.setMinimum(spinner[0])
+            spin.setValue(spinner[1])
+            box.addWidget(spin)
+        else:
+            spin = None
         if button:
-            box.addWidget(button)
+            btn = qtw.QPushButton(button[0], self)
+            btn.clicked.connect(button[1])
+            box.addWidget(btn)
         if spinner or button:
             box.addStretch()
             self.grid.addLayout(box, self.row, 1)
         else:
             self.grid.addWidget(chk, self.row, 1)
-        return chk
+        return chk, spin
+
+    def add_buttons(self, buttondefs):
+        "add action buttons to the bottom of the display"
+        self.row += 1
+        hbox = qtw.QHBoxLayout()
+        hbox.addStretch(1)
+        for text, callback in buttondefs:
+            btn = qtw.QPushButton(text, self)
+            btn.clicked.connect(callback)
+            hbox.addWidget(btn)
+        hbox.addStretch(1)
+        self.grid.addLayout(hbox, self.row, 0, 1, 2)
+
+    def finalize_display(self, buttongroup):
+        "last actions needed before showing"
+        vbox = qtw.QVBoxLayout()
+        vbox.addLayout(self.grid)
+        self.setLayout(vbox)
+        buttongroup.buttons()[0].setFocus()
+
+    def go(self):
+        "start event loop"
+        sys.exit(self.app.exec())
 
     def keyPressEvent(self, event):
         """event handler voor toetsaanslagen"""
@@ -262,410 +238,326 @@ class LinterGui(qtw.QWidget):
     def zoekdir(self):
         """event handler voor 'zoek in directory'"""
         dlg = qtw.QFileDialog.getExistingDirectory(self, "Choose a directory:",
-                                                   self.vraag_dir.currentText())
+                                                   self.master.vraag_dir.currentText())
         if dlg:
-            self.vraag_dir.setEditText(dlg)
+            self.master.vraag_dir.setEditText(dlg)
 
 
-class FilterOptions(qtw.QDialog):
+class FilterOptionsGui(qtw.QDialog):
     """configure what files (not) to lint
     """
-    def __init__(self, parent):
-        self.parent = parent
+    def __init__(self, master, parent, title):
+        self.master = master
         super().__init__(parent)
-        self.setWindowTitle(self.parent.master.title + " - configure")
-        self.setWindowIcon(self.parent.appicon)
-        vbox = qtw.QVBoxLayout()
+        self.setWindowTitle(title)
+        self.setWindowIcon(parent.appicon)
+        self.vbox = qtw.QVBoxLayout()
+        self.gbox = qtw.QGridLayout()
+        self.vbox.addLayout(self.gbox)
+        self.row = 0
+        self.setLayout(self.vbox)
 
-        gbox = qtw.QGridLayout()
-        row = 1
-        gbox.addWidget(qtw.QLabel("Blacklist (do no lint):", self), row, 0, 1, 2)
-        row += 1
-        gbox.addWidget(qtw.QLabel("Directory names:", self), row, 0)
-        self.skipdirs = qtw.QLineEdit(self)
-        self.skipdirs.setMinimumWidth(200)
-        self.skipdirs.setText(SEP.join(self.parent.master.blacklist['exclude_dirs']))
-        gbox.addWidget(self.skipdirs, row, 1)
-        row += 1
-        gbox.addWidget(qtw.QLabel("File extensions:", self), row, 0)
-        self.skipexts = qtw.QLineEdit(self)
-        self.skipexts.setText(SEP.join(self.parent.master.blacklist['exclude_exts']))
-        gbox.addWidget(self.skipexts, row, 1)
-        row += 1
-        gbox.addWidget(qtw.QLabel("File names:", self), row, 0)
-        self.skipfiles = qtw.QLineEdit(self)
-        self.skipfiles.setText(SEP.join(self.parent.master.blacklist['exclude_files']))
-        gbox.addWidget(self.skipfiles, row, 1)
-        row += 1
-        gbox.addWidget(qtw.QLabel("", self), row, 0)
-        row += 1
-        gbox.addWidget(qtw.QLabel("Whitelist (only lint):", self), row, 0, 1, 2)
-        row += 1
-        gbox.addWidget(qtw.QLabel("File extensions:", self), row, 0)
-        self.do_exts = qtw.QLineEdit(self)
-        self.do_exts.setText(SEP.join(self.parent.master.blacklist['include_exts']))
-        gbox.addWidget(self.do_exts, row, 1)
-        row += 1
-        gbox.addWidget(qtw.QLabel("Shebang lines:", self), row, 0)
-        self.do_bangs = qtw.QLineEdit(self)
-        self.do_bangs.setText(SEP.join(self.parent.master.blacklist['include_shebang']))
-        gbox.addWidget(self.do_bangs, row, 1)
-        row += 1
-        gbox.addWidget(qtw.QLabel("", self), row, 0)
-        vbox.addLayout(gbox)
+    def add_title_line(self, text):
+        "add a line with text"
+        self.row += 1
+        self.gbox.addWidget(qtw.QLabel(text, self), self.row, 0, 1, 2)
 
+    def add_textentry_line(self, caption, initialtext, width=0):
+        "add a line with some fixed text and a textentry field"
+        self.row += 1
+        self.gbox.addWidget(qtw.QLabel(caption, self), self.row, 0)
+        textfield = qtw.QLineEdit(self)
+        if width:
+            textfield.setMinimumWidth(width)
+        textfield.setText(initialtext)
+        self.gbox.addWidget(textfield, self.row, 1)
+        return textfield
+
+    def add_buttons(self, buttondefs):
+        "add action buttons at the bottom of the display"
         hbox = qtw.QHBoxLayout()
         hbox.addStretch()
-        b_can = qtw.QPushButton("&Terug", self)
-        b_can.clicked.connect(self.reject)
-        hbox.addWidget(b_can)
-        b_ok = qtw.QPushButton("&Klaar", self)
-        b_ok.clicked.connect(self.accept)
-        hbox.addWidget(b_ok)
+        for text, callback in buttondefs:
+            btn = qtw.QPushButton(text, self)
+            btn.clicked.connect(callback)
+            hbox.addWidget(btn)
         hbox.addStretch()
-        vbox.addLayout(hbox)
-
-        self.setLayout(vbox)
+        self.vbox.addLayout(hbox)
 
     def accept(self):
         """transfer chosen options to parent"""
-        self.parent.master.blacklist = {
-            'exclude_dirs': list(self.skipdirs.text().split(SEP)),
-            'exclude_exts': list(self.skipexts.text().split(SEP)),
-            'include_exts': list(self.do_exts.text().split(SEP)),
-            'exclude_files': list(self.skipfiles.text().split(SEP)),
-            'include_shebang': list(self.do_bangs.text().split(SEP)), }
+        self.master.confirm()
         super().accept()
 
+    def get_textentry_value(self, textfield):
+        "return the value of the entered text"
+        return textfield.text()
 
-class QuietOptions(qtw.QDialog):
+
+class QuietOptionsGui(qtw.QDialog):
     """configure where to send output to
     """
-    def __init__(self, parent):
-        self.parent = parent
+    def __init__(self, master, parent, title):
+        self.master = master
         super().__init__(parent)
-        self.setWindowTitle(self.parent.master.title + " - configure")
-        self.setWindowIcon(self.parent.appicon)
-        vbox = qtw.QVBoxLayout()
-        vbox.addWidget(qtw.QLabel("Send output to:", self))
+        self.setWindowTitle(title)
+        self.setWindowIcon(parent.appicon)
+        self.vbox = qtw.QVBoxLayout()
+        self.setLayout(self.vbox)
 
+    def start_line(self):
+        "add an empty line to the display"
         box = qtw.QHBoxLayout()
-        self.single = qtw.QRadioButton('Single file:', self)
-        box.addWidget(self.single)
-        self.fname = qtw.QLineEdit(self)
-        self.fname.setMaximumWidth(TXTW)
-        self.fname.setMinimumWidth(TXTW)
-        self.fname.setText(self.parent.master.quiet_options['fname'])
-        if self.parent.master.quiet_options['dest'] == Mode.single.name:
-            self.single.setChecked(True)
-        box.addWidget(self.fname)
-        btn = qtw.QPushButton('Select', self)
-        btn.clicked.connect(self.browse)
+        return box
+
+    def add_text_to_line(self, box, text, before=0):
+        "add some fixed text to the screen line"
+        if before:
+            box.addSpacing(before)
+        box.addWidget(qtw.QLabel(text, self))
+
+    def add_radiobutton_to_line(self, box, text, state):
+        "add a checkbox to the screen line"
+        rb = qtw.QRadioButton(text, self)
+        box.addWidget(rb)
+        if state:
+            rb.setChecked(True)
+        return rb
+
+    def add_textentry_to_line(self, box, initialtext, width=0):
+        "add a text entry field to the screen line"
+        textfield = qtw.QLineEdit(self)
+        if width:
+            textfield.setMaximumWidth(width)
+            textfield.setMinimumWidth(width)
+        textfield.setText(initialtext)
+        box.addWidget(textfield)
+        return textfield
+
+    def add_button_to_line(self, box, text, callback):
+        "add a button to the screen line"
+        btn = qtw.QPushButton(text, self)
+        btn.clicked.connect(callback)
         box.addWidget(btn)
+
+    def end_line(self, box):
+        "add an ending to the screen line"
         box.addStretch()
-        vbox.addLayout(box)
+        self.vbox.addLayout(box)
 
-        box = qtw.QHBoxLayout()
-        self.multi = qtw.QRadioButton('Multiple files like:', self)
-        box.addWidget(self.multi)
-        self.pattern = qtw.QLineEdit(self)
-        self.pattern.setMaximumWidth(TXTW + 100)
-        self.pattern.setMinimumWidth(TXTW + 100)
-        if self.parent.master.quiet_options['dest'] == Mode.multi.name:
-            self.multi.setChecked(True)
-        self.pattern.setText(self.parent.master.quiet_options['pattern'])
-        box.addWidget(self.pattern)
-        box.addStretch()
-        vbox.addLayout(box)
-
-        box = qtw.QHBoxLayout()
-        box.addSpacing(26)
-        box.addWidget(qtw.QLabel('<ignore> part of filename:', self))
-        self.ignore = qtw.QLineEdit(self)
-        self.ignore.setMaximumWidth(TXTW)
-        self.ignore.setMinimumWidth(TXTW)
-        self.ignore.setText(self.parent.master.quiet_options['ignore'])
-        box.addWidget(self.ignore)
-        box.addStretch()
-        vbox.addLayout(box)
-
-        text = """\
-        <linter>: replace linter name in path
-        <ignore>: part of source filename not to include in target name
-        <filename>: (remainder of) source filename
-        <date>: datetime.datetime.today().strftime('%Y%m%d%H%M%S')
-        """
-        vbox.addWidget(qtw.QLabel(text, self))
-
+    def add_buttons(self, buttondefs):
+        "add action buttons at the bottom of the display"
         hbox = qtw.QHBoxLayout()
         hbox.addStretch()
-        b_can = qtw.QPushButton("&Terug", self)
-        b_can.clicked.connect(self.reject)
-        hbox.addWidget(b_can)
-        b_ok = qtw.QPushButton("&Klaar", self)
-        b_ok.clicked.connect(self.accept)
-        hbox.addWidget(b_ok)
+        for text, callback in buttondefs:
+            btn = qtw.QPushButton(text, self)
+            btn.clicked.connect(callback)
+            hbox.addWidget(btn)
         hbox.addStretch()
-        vbox.addLayout(hbox)
-
-        self.setLayout(vbox)
-        if self.parent.master.dest_from_input:
-            self.single.setChecked(True)
-            self.fname.setText(self.parent.master.dest_from_input)
+        self.vbox.addLayout(hbox)
 
     def browse(self):
         """callback for selector
         """
+        # TODO
 
     def accept(self):
         """transfer chosen options to parent"""
-        self.parent.newquietoptions = {
-            'single_file': self.single.isChecked(),
-            'fname': self.fname.text(),
-            'pattern': self.pattern.text(),
-            'ignore': self.ignore.text()}
+        self.master.confirm()
         super().accept()
 
+    def set_radiobutton_value(self, rb, value):
+        "set the state of a radiobutton"
+        rb.setChecked(value)
 
-class SelectNames(qtw.QDialog):
+    def get_radiobutton_value(self, rb):
+        "return the state of a radiobutton"
+        return rb.isChecked()
+
+    def set_textentry_value(self, textfield, text):
+        "set the text in a textfield"
+        textfield.setText(text)
+
+    def get_textentry_value(self, textfield):
+        "return the entered value in a text field"
+        return textfield.text()
+
+
+class SelectNamesGui(qtw.QDialog):
     """Tussenscherm om te verwerken files te kiezen
     """
-    def __init__(self, parent, files=True):
-        self.dofiles = files
-        self.parent = parent
+    def __init__(self, master, parent, title):
+        self.master = master
         super().__init__(parent)
-        self.setWindowTitle(self.parent.master.title + " - file list")
-        # self.setWindowIcon(gui.QIcon(self.parent.master.iconame))
-        self.setWindowIcon(self.parent.appicon)
-        vbox = qtw.QVBoxLayout()
+        self.setWindowTitle(title)
+        self.setWindowIcon(parent.appicon)
+        self.vbox = qtw.QVBoxLayout()
+        self.setLayout(self.vbox)
 
-        if files:
-            text = "Selecteer de bestanden die je *niet* wilt verwerken"
-        else:
-            text = "Selecteer de directories die je *niet* wilt verwerken"
+    def start_line(self):
+        "start a new line on the display"
+        hbox = qtw.QHBoxLayout()
+        self.vbox.addLayout(hbox)
+        return hbox
+
+    def add_text_to_line(self, line, text):
+        "put some fixed text on the screen line"
         txt = qtw.QLabel(text, self)
-        hbox = qtw.QHBoxLayout()
-        hbox.addWidget(txt)
-        vbox.addLayout(hbox)
-        self.sel_all = qtw.QCheckBox('Select/Unselect All', self)
-        self.sel_all.clicked.connect(self.select_all)
-        hbox = qtw.QHBoxLayout()
-        hbox.addSpacing(10)
-        hbox.addWidget(self.sel_all)
-        self.flip_sel = qtw.QPushButton('Invert selection', self)
-        self.flip_sel.clicked.connect(self.invert_selection)
-        hbox.addStretch()
-        hbox.addWidget(self.flip_sel)
-        hbox.addSpacing(20)
-        vbox.addLayout(hbox)
+        line.addWidget(txt)
 
+    def add_checkbox_to_line(self, line, text, callback, before=0):
+        "add a checkbox to the screen line"
+        chk = qtw.QCheckBox(text, self)
+        chk.clicked.connect(callback)
+        if before:
+            line.addSpacing(before)
+        line.addWidget(chk)
+        return chk
+
+    def add_button_to_line(self, line, text, callback, before=0):
+        "add an action button to the screen line"
+        btn = qtw.QPushButton(text, self)
+        btn.clicked.connect(callback)
+        if before:
+            line.addSpacing(before)
+        line.addWidget(btn)
+        # line.addStretch()
+        return btn
+
+    def create_checkbox_list(self, names):
+        "add a list of names with checkboxes to the display"
         self.frm = qtw.QFrame(self)   # attribuut van gemaakt tbv unittest
         fvbox = qtw.QVBoxLayout()
-        self.checklist = []
-        for item in self.parent.master.names:
+        checklist = []
+        for item in names:
             chk = qtw.QCheckBox(item, self.frm)
             fhbox = qtw.QHBoxLayout()
             fhbox.addWidget(chk)
-            self.checklist.append(chk)
+            checklist.append(chk)
             fvbox.addLayout(fhbox)
         self.frm.setLayout(fvbox)
         scrl = qtw.QScrollArea(self)
         scrl.setWidget(self.frm)
         hbox = qtw.QHBoxLayout()
         hbox.addWidget(scrl)
-        vbox.addLayout(hbox)
+        self.vbox.addLayout(hbox)
+        return checklist
 
-        b_can = qtw.QPushButton("&Terug", self)
-        b_can.clicked.connect(self.reject)
-        b_ok = qtw.QPushButton("&Klaar", self)
-        b_ok.clicked.connect(self.accept)
+    def create_button_bar(self, buttondefs):
+        "add a sript with action buttons at the bottom of the display"
         hbox = qtw.QHBoxLayout()
         hbox.addStretch()
-        hbox.addWidget(b_can)
-        hbox.addWidget(b_ok)
+        for name, callback in buttondefs:
+            btn = qtw.QPushButton(name, self)
+            btn.clicked.connect(callback)
+            hbox.addWidget(btn)
         hbox.addStretch()
-        vbox.addLayout(hbox)
+        self.vbox.addLayout(hbox)
 
-        self.setLayout(vbox)
+    def get_checkbox_text(self, cb):
+        "return the label text of a checkbox"
+        return cb.text()
 
-    def select_all(self):
-        """check/uncheck all boxes
-        """
-        state = self.sel_all.isChecked()
-        for chk in self.checklist:
-            chk.setChecked(state)
+    def get_checkbox_value(self, cb):
+        "return the state of a checkbox"
+        return cb.isChecked()
 
-    def invert_selection(self):
-        """check unchecked and uncheck checked
-        """
-        for chk in self.checklist:
-            chk.setChecked(not chk.isChecked())
+    def set_checkbox_value(self, cb, state):
+        "set the state of a checkbox"
+        cb.setChecked(state)
 
     def accept(self):
         "dialoog afsluiten"
-        dirs = []
-        for chk in self.checklist:
-            if chk.isChecked():
-                if self.dofiles:
-                    self.parent.master.names.remove(chk.text())
-                else:
-                    dirs.append(chk.text())
-        if not self.dofiles:
-            self.parent.master.names = dirs
+        self.master.confirm()
         super().accept()
 
 
-class Results(qtw.QDialog):
+class ResultsGui(qtw.QDialog):
     """Show results on screen
     """
     helpinfo = ("Select a line and doubleclick or press Ctrl-G to open the indicated file\n"
                 "at the indicated line (not in single file mode)")
 
-    def __init__(self, parent, common_path=''):
-        self.parent = parent
-        self.common = common_path
-        self.results = []
-        breedte = 50 if self.parent.master.mode == Mode.single.value else 150
+    def __init__(self, master, parent, title, breedte):
+        self.master = master
         super().__init__(parent)
-        self.setWindowTitle(self.parent.master.resulttitel)
-        # self.setWindowIcon(gui.QIcon(self.parent.master.iconame))
-        self.setWindowIcon(self.parent.appicon)
-        vbox = qtw.QVBoxLayout()
+        self.setWindowTitle(title)
+        self.setWindowIcon(parent.appicon)
+        self.vbox = qtw.QVBoxLayout()
+        self.setLayout(self.vbox)
+        self.resize(574 + breedte, 480)
 
+    def add_top_text(self, label_txt):
+        "add some fixed text at the top of the display"
         hbox = qtw.QHBoxLayout()
-        label_txt = (f"{self.parent.master.do_checks.rpt[0]}"
-                     f" ({len(self.parent.master.do_checks.results)} items)")
-        if self.parent.master.mode == Mode.multi.value:
-            label_txt += '\n' + common_path_txt.format(self.common.rstrip(os.sep))
-        self.txt = qtw.QLabel(label_txt, self)
-        hbox.addWidget(self.txt)
-        vbox.addLayout(hbox)
+        hbox.addWidget(qtw.QLabel(label_txt, self))
+        self.vbox.addLayout(hbox)
 
-        # combobox/selector voor files
+    def add_combobox_line(self, text, items):
+        "add a combobox/selector voor files"
         hbox = qtw.QHBoxLayout()
-        hbox.addWidget(qtw.QLabel('Files checked:', self))
-        self.filelist = qtw.QComboBox(self)
-        self.filelist.addItems(self.parent.master.do_checks.filenames)
-        self.filelist.setEditable(False)
-        hbox.addWidget(self.filelist)
+        self.vbox.addLayout(hbox)
+        hbox.addWidget(qtw.QLabel(text, self))
+        cmb = qtw.QComboBox(self)
+        cmb.addItems(items)
+        cmb.setEditable(False)
+        cmb.currentIndexChanged.connect(self.master.populate_list)
+        hbox.addWidget(cmb)
         hbox.addStretch()
-        btn = qtw.QPushButton("&Go To File", self)
-        btn.clicked.connect(self.goto_result)
-        hbox.addWidget(btn)
-        vbox.addLayout(hbox)
+        return hbox, cmb
 
+    def add_button_to_line(self, hbox, text, callback):
+        "add an action button to the line"
+        btn = qtw.QPushButton(text, self)
+        btn.clicked.connect(callback)
+        hbox.addWidget(btn)
+
+    def add_results_list(self):
+        "add a text field to present the linting results"
         hbox = qtw.QHBoxLayout()
-        # mag gewoon een listbox of een tekstvak worden - niet-proportioneel font graag
-        self.lijst = qtw.QTextEdit(self)
+        lijst = qtw.QTextEdit(self)
         font = gui.QFont()
         font.setFamily('Courier')
         font.setFixedPitch(True)
         font.setPointSize(10)
-        self.lijst.setCurrentFont(font)
-        self.lijst.setReadOnly(True)
+        lijst.setCurrentFont(font)
+        lijst.setReadOnly(True)
+        hbox.addWidget(lijst)
+        self.vbox.addLayout(hbox)
+        return lijst
 
-        self.populate_list()
-        self.filelist.currentIndexChanged.connect(self.populate_list)
-
-        hbox.addWidget(self.lijst)
-        vbox.addLayout(hbox)
-
+    def add_buttons(self, buttondefs):
+        "add action buttons at the bottom of the display"
         hbox = qtw.QHBoxLayout()
         hbox.addStretch()
-        btn = qtw.QPushButton("&Klaar", self)
-        btn.clicked.connect(self.klaar)
-        hbox.addWidget(btn)
-        btn = qtw.QPushButton("&Repeat Action", self)
-        btn.clicked.connect(self.refresh)
-        hbox.addWidget(btn)
-        btn = qtw.QPushButton("Copy to &File(s)", self)
-        btn.clicked.connect(self.kopie)
-        hbox.addWidget(btn)
-        btn = qtw.QPushButton("Copy to &Clipboard", self)
-        btn.clicked.connect(self.to_clipboard)
-        hbox.addWidget(btn)
+        for text, callback in buttondefs:
+            btn = qtw.QPushButton(text, self)
+            btn.clicked.connect(callback)
+            hbox.addWidget(btn)
         hbox.addStretch()
-        vbox.addLayout(hbox)
+        self.vbox.addLayout(hbox)
 
-        self.setLayout(vbox)
-        self.resize(574 + breedte, 480)
-        self.exec()
+    def get_combobox_value(self, cmb):
+        "get the selected value from a combobox"
+        return cmb.currentText()
 
-    def populate_list(self):
-        """copy results to listbox
-        """
-        fname = self.filelist.currentText()
-        text = self.parent.master.do_checks.results[fname]
-        self.lijst.setText(text)
+    def set_combobox_value(self, cmb, value):
+        "select a value in a combobox"
+        return cmb.setCurrentIndex(value)
+
+    def set_textbox_value(self, textbox, text):
+        "add contents to the results list if given, otherwise just clear out"
+        textbox.clear()
+        if text:
+            textbox.setText(text)
 
     def klaar(self):
         """finish dialog
         """
         qtw.QDialog.done(self, 0)
 
-    def refresh(self):
-        """callback for repeat action
-        """
-        self.results = []
-        self.lijst.clear()
-        self.parent.master.do_checks.rpt = ["".join(self.parent.master.do_checks.specs)]
-        self.parent.execute_action()
-        self.populate_list()
-        self.filelist.setCurrentIndex(0)
-
-    def kopie(self):
-        """callback for button 'Copy to file'
-        """
-        dlg = QuietOptions(self.parent).exec()
-        if not dlg:
-            return
-        if self.parent.newquietoptions['single_file']:
-            fname = self.parent.master.get_output_filename(self.parent.newquietoptions['fname'])
-            with open(fname, "w") as f_out:
-                first_file = True
-                for name, data in self.parent.master.do_checks.results.items():
-                    if not first_file:
-                        print('', file=f_out)
-                        print('', file=f_out)
-                    first_file = False
-                    print(f'results for {name}', file=f_out)
-                    print('', file=f_out)
-                    print(data, file=f_out)
-            msgstart = 'O'
-        else:
-            for name, data in self.parent.master.do_checks.results.items():
-                fname = self.parent.master.get_output_filename(
-                    self.parent.newquietoptions['pattern'], name)
-                with open(fname, 'w') as f_out:
-                    print(f'results for {name}', file=f_out)
-                    print('', file=f_out)
-                    print(data, file=f_out)
-            msgstart = 'Last o'
-        qtw.QMessageBox.information(self, self.parent.master.title,
-                                    f'{msgstart}utput saved as {fname}')
-
-    def help(self):
-        """suggest workflow
-        """
-        qtw.QMessageBox.information(self, self.parent.master.title, self.helpinfo)
-
-    def to_clipboard(self):
+    def copy_to_clipboard(self, data):
         """callback for button 'Copy to clipboard'
         """
         clp = qtw.QApplication.clipboard()
-        text = []
-        first_file = True
-        for name, data in self.parent.master.do_checks.results.items():
-            if not first_file:
-                text.extend(['', ''])
-            first_file = False
-            text.extend([f'results for {name}', '', data])
-        clp.setText('\n'.join(text))
-        qtw.QMessageBox.information(self, self.parent.master.title, 'Output copied to clipboard')
-
-    def goto_result(self):
-        """open the file containing the checked lines
-        """
-        fname = self.filelist.currentText()
-        prog, fileopt = self.parent.master.editor_option[:2]
-        subprocess.run(prog + [fileopt.format(fname)], check=False)  # , lineopt.format(line)])
+        clp.setText(data)
